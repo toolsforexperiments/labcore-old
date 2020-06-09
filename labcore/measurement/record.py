@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
-from typing import Optional, Iterable, List, Callable, Iterator, Tuple, Union, Any
-from functools import wraps
+from typing import Optional, Iterable, List, Callable, Iterator, Tuple, Union, \
+    Any
+from functools import update_wrapper
 import copy
 import collections
 from enum import Enum
@@ -38,10 +39,15 @@ class DataSpec:
 
 #: shorter notation for constructing DataSpec objects
 ds = DataSpec
+#: The type for creating a ds
+DataSpecFromTupleType = Tuple[str, Union[None, List[str], Tuple[str]], str,
+                              str]
 #: Short hand for inputs we can make data specs from
 DataSpecsType = Union[DataSpec, tuple, dict]
 
 
+# TODO: just a string should be allowed
+# TODO: make a document with an list of acceptable ways to specify ds
 def make_data_specs(*specs: DataSpecsType):
     ret = []
     for spec in specs:
@@ -59,35 +65,39 @@ def make_data_specs(*specs: DataSpecsType):
     return ret
 
 
-def record_func_output(*data_specs: [Union[DataSpec, tuple, dict]]):
+def independent(name: str, unit: str = '', type: str = 'scalar') -> DataSpec:
+    return DataSpec(name, unit=unit, type=type, depends_on=None)
+
+
+indep = independent
+
+
+def dependent(name: str, depends_on: List[str] = [], unit: str = "",
+              type: str = 'scalar'):
+    return DataSpec(name, unit=unit, type=type, depends_on=depends_on)
+
+
+dep = dependent
+
+
+def recording(*data_specs: [Union[DataSpec, tuple, dict]]):
     """Returns a decorator that allows adding data parameter specs to a
     function.
     """
     def decorator(func):
-        dspecs = make_data_specs(*data_specs)
-        func.data_specs = dspecs
-        func.get_data_specs = lambda: func.data_specs
-
-        @wraps(func)
-        def wrap(*args, **kwargs):
-            func_args, func_kwargs = map_input_to_signature(func,
-                                                            *args, **kwargs)
-            func_ret = func(*func_args, **func_kwargs)
-            return _to_labelled_data(func_ret, func.get_data_specs())
-
-        return wrap
+        return FunctionToRecords(func, data_specs)
     return decorator
 
 
-def record(*args: Union[DataSpecsType, Callable, Iterable, Iterator]):
-    if len(args) < 2:
-        raise ValueError("need at least one data spec and one object "
+def record_as(*args: Union[DataSpecsType, Callable, Iterable, Iterator]):
+    if len(args) < 1:
+        raise ValueError("need at least one object "
                          "producing output")
-    obj = args[-1]
-    specs = make_data_specs(*args[:-1])
+    obj = args[0]
+    specs = make_data_specs(*args[1:])
 
     if isinstance(obj, Callable):
-        return record_func_output(*specs)(obj)
+        return recording(*specs)(obj)
     elif isinstance(obj, collections.abc.Iterable):
         return IteratorToRecords(obj, specs)
 
@@ -135,3 +145,22 @@ class IteratorToRecords:
     def __iter__(self):
         for val in self.iterable:
             yield _to_labelled_data(val, self.data_specs)
+
+
+class FunctionToRecords:
+    def __init__(self, func, data_specs):
+        self.func = func
+        if isinstance(data_specs, collections.abc.Iterable):
+            self.data_specs = data_specs
+        else:
+            self.data_specs = make_data_specs(data_specs)
+        update_wrapper(self, func)
+
+    def get_data_specs(self):
+        return self.data_specs
+
+    def __call__(self, *args, **kwargs):
+        func_args, func_kwargs = map_input_to_signature(self.func,
+                                                        *args, **kwargs)
+        ret = self.func(*func_args, **func_kwargs)
+        return _to_labelled_data(ret, self.get_data_specs())
