@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Union
 import inspect
 
 
@@ -24,7 +24,9 @@ def same_type(*args: Any, target_type: type = None) -> bool:
     return True
 
 
-def map_input_to_signature(func: Callable, *args: Any, **kwargs: Any):
+# FIXME: 'None' should never override a default!
+def map_input_to_signature(func: Union[Callable, inspect.Signature],
+                           *args: Any, **kwargs: Any):
     """Try to re-organize the positional arguments `args` and key word
     arguments `kwargs` such that `func` can be called with them.
 
@@ -57,7 +59,11 @@ def map_input_to_signature(func: Callable, *args: Any, **kwargs: Any):
     func_args = []
     func_kwargs = {}
 
-    sig = inspect.signature(func)
+    if isinstance(func, inspect.Signature):
+        sig = func
+    else:
+        sig = inspect.signature(func)
+
     # Logic:
     # for each param the function expects, we need to check if have
     # received a fitting one
@@ -70,7 +76,7 @@ def map_input_to_signature(func: Callable, *args: Any, **kwargs: Any):
             else:
                 if len(args) > 0:
                     func_args.insert(idx, args.pop(0))
-                else:
+                elif p_.default is inspect.Parameter.empty:
                     func_args.insert(idx, None)
         elif p_.kind is inspect.Parameter.KEYWORD_ONLY:
             if p in kwargs:
