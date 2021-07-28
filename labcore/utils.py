@@ -69,6 +69,10 @@ def map_input_to_signature(func: Union[Callable, inspect.Signature],
     # received a fitting one
     for idx, p in enumerate(sig.parameters):
         p_ = sig.parameters[p]
+
+        # we treat anything that can be given positionally as positional.
+        # first prio to keyword-given values, second to positionally given,
+        # finally default if given in signature.
         if p_.kind in [inspect.Parameter.POSITIONAL_OR_KEYWORD,
                        inspect.Parameter.POSITIONAL_ONLY]:
             if p in kwargs:
@@ -78,6 +82,9 @@ def map_input_to_signature(func: Union[Callable, inspect.Signature],
                     func_args.insert(idx, args.pop(0))
                 elif p_.default is inspect.Parameter.empty:
                     func_args.insert(idx, None)
+                else:
+                    func_args.insert(idx, p_.default)
+
         elif p_.kind is inspect.Parameter.KEYWORD_ONLY:
             if p in kwargs:
                 func_kwargs[p] = kwargs.pop(p)
