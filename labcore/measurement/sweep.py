@@ -12,7 +12,8 @@ except ImportError:
 
 from .record import produces_record, DataSpec, IteratorToRecords, \
     DataSpecFromTupleType, record_as, combine_data_specs, independent, \
-    make_data_spec
+    make_data_spec, data_specs_label
+from ..utils import indent_text
 
 
 logger = logging.getLogger(__name__)
@@ -240,6 +241,13 @@ class Sweep:
 
         return tuple(specs)
 
+    def __repr__(self):
+        ret = self.pointer.__repr__()
+        for a in self.actions:
+            ret += f" >> {a.__repr__()}"
+        ret += f"\n==> {data_specs_label(*self.get_data_specs())}"
+        return ret
+
 
 class SweepIterator:
     """Iterator for the :class:`.Sweep` class.
@@ -372,6 +380,9 @@ def nest_sweeps(outer: Sweep, inner: Sweep) -> Sweep:
 
 
 class CombineSweeps:
+
+    _operator_symbol = None
+
     def __init__(self, first: Sweep, second: Sweep):
         self.first = first
         self.second = second
@@ -379,8 +390,30 @@ class CombineSweeps:
     def __iter__(self):
         raise NotImplementedError
 
+    def __repr__(self):
+        ret = self.__class__.__name__ + ":\n"
+        ret += indent_text(self.first.__repr__(), 4) + '\n'
+        sym = ''
+        if self._operator_symbol is not None:
+            sym += self._operator_symbol + ' '
+        sec_text = indent_text(self.second.__repr__(), 2)
+        sec_text = sym + sec_text[len(sym):]
+        ret += indent_text(sec_text, 4) + '\n'
+        ret = ret.rstrip()
+        while ret[-1] == "\n" and ret[-2] == "\n":
+            ret = ret[:-1]
+        return ret
+
+    def get_data_specs(self):
+        specs = list(self.first.get_data_specs()) + \
+                list(self.second.get_data_specs())
+        return combine_data_specs(*specs)
+
 
 class ZipSweeps(CombineSweeps):
+
+    _operator_symbol = '*'
+
     def __iter__(self):
         for fd, sd in zip(self.first, self.second):
             ret = fd.copy()
@@ -389,12 +422,18 @@ class ZipSweeps(CombineSweeps):
 
 
 class AppendSweeps(CombineSweeps):
+
+    _operator_symbol = '+'
+
     def __iter__(self):
         for ret in itertools.chain(self.first, self.second):
             yield ret
 
 
 class NestSweeps(CombineSweeps):
+
+    _operator_symbol = '@'
+
     def __iter__(self):
         for outer in self.first:
             for inner in self.second:

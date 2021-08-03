@@ -97,3 +97,8 @@ def map_input_to_signature(func: Union[Callable, inspect.Signature],
             func_kwargs.update(kwargs)
 
     return func_args, func_kwargs
+
+
+def indent_text(text: str, level: int = 0) -> str:
+    """Indent each line of ``text`` by ``level`` spaces."""
+    return "\n".join([" " * level + line for line in text.split('\n')])

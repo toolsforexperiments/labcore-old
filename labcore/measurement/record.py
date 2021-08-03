@@ -45,9 +45,15 @@ class DataSpec:
         if isinstance(self.type, str):
             self.type = DataType(self.type)
 
-    def copy(self):
+    def copy(self) -> "DataSpec":
         """return a deep copy of the DataSpec instance."""
         return copy.deepcopy(self)
+
+    def __repr__(self) -> str:
+        ret = self.name
+        if self.depends_on is not None and len(self.depends_on) > 0:
+            ret += f"({', '.join(list(self.depends_on))})"
+        return ret
 
 
 #: shorter notation for constructing DataSpec objects
@@ -62,6 +68,18 @@ DataSpecFromDictType = Dict[str, Union[str, Union[None, List[str], Tuple[str]]]]
 #: The type from which we can create a DataSpec.
 DataSpecCreationType = Union[str, DataSpecFromTupleType,
                              DataSpecFromDictType, DataSpec]
+
+
+def data_specs_label(*dspecs: DataSpec) -> str:
+    """Create a readable label for multiple data specs.
+
+    Format:
+        {data_name_1 (dep_1, dep_2), data_name_2 (dep_3), etc.}
+
+    :param dspecs: data specs as positional arguments.
+    :return: label as string.
+    """
+    return r"{" + f"{', '.join([d.__repr__() for d in dspecs])}" + r"}"
 
 
 def make_data_spec(value: DataSpecCreationType) -> DataSpec:
@@ -205,6 +223,16 @@ class IteratorToRecords:
         for val in self.iterable:
             yield _to_record(val, self.data_specs)
 
+    def __repr__(self):
+        from .sweep import CombineSweeps
+
+        ret = self.iterable.__repr__()
+        if not isinstance(self.iterable, CombineSweeps):
+            dnames = data_specs_label(*self.get_data_specs())
+            ret += f" as {dnames}"
+
+        return ret
+
 
 class FunctionToRecords:
     """A wrapper that converts a function return to a record."""
@@ -223,6 +251,12 @@ class FunctionToRecords:
                                                         *args, **kwargs)
         ret = self.func(*func_args, **func_kwargs)
         return _to_record(ret, self.get_data_specs())
+
+    def __repr__(self):
+        dnames = data_specs_label(*self.data_specs)
+        ret = self.func.__name__ + str(self.func_sig)
+        ret += f" as {dnames}"
+        return ret
 
 
 # TODO: support for qcodes parameters as actions. should automatically
