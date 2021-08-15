@@ -1,7 +1,8 @@
 import itertools
-from typing import Iterable, Callable, Union, Tuple, Any, Optional, Dict, List
+from typing import Iterable, Callable, Union, Tuple, Any, Optional, Dict, List, Generator
 import collections
 import logging
+from functools import wraps
 
 try:
     from qcodes import Parameter as QCParameter
@@ -440,3 +441,93 @@ class NestSweeps(CombineSweeps):
                 ret = outer.copy()
                 ret.update(inner)
                 yield ret
+
+
+class BackgroundRecordingBase:
+    """
+    Base class decorator used to record asynchronous data from instrument.
+    Use the decorator with create_background_sweep function to create Sweeps that collect asynchronous data from
+    external devices running experiments independently of the measurement PC,
+    e.i. the measuring happening is not being controlled by a Sweep but instead an external device (e.g. the OPX).
+    Each instrument should have its own custom setup_wrapper (see setup_wrapper docstring for more info),
+    and a custom collector.
+    Auxiliary functions for the start_wrapper and collector should also be located in this class.
+
+    :param *specs: A list of the DataSpecs to record the data produced.
+    """
+
+    def __init__(self, *specs):
+        self.specs = specs
+        self.communicator = {}
+
+    def __call__(self, fun) -> Callable:
+        """
+        When the decorator is called the experiment function gets wrapped so that it returns an Sweep object composed
+        of 2 different Sweeps, the setup sweep and the collector Sweep.
+        """
+
+        def sweep(**collector_kwargs) -> Sweep:
+            """
+            Returns a Sweep comprised of 2 different Sweeps: start_sweep and collector_sweep.
+            start_sweep should perform any setup actions as well as starting the actual experiment. This sweep is only
+            executed once. collector_sweep is iterated multiple time to collect all the data generated from the
+            instrument.
+
+            :param collector_kwargs: Any arguments that the collector needs.
+            """
+
+            start_sweep = once(self.wrap_start(fun))
+            collector_sweep = Sweep(record_as(self.collector(**collector_kwargs), *self.specs))
+            return start_sweep + collector_sweep
+
+        return sweep
+
+    def wrap_start(self, fun: Callable) -> Callable:
+        """
+        Wraps the start function. setup_wrapper should consist of another function inside of it decorated with @wraps
+        with fun as its argument.
+        In this case the wrapped function is setup.
+        Setup should accept the *args and **kwargs of fun. It should also place any returns from fun
+         in the communicator. setup_wrapper needs to return the wrapped function (setup)
+
+        :param fun: The measurement function. In the case of the OPX this would be the function that returns the QUA
+                    code with any arguments that it might use.
+        """
+
+        @wraps(fun)
+        def start(*args, **kwargs) -> None:
+            """
+            Starts the experiment and saves anything that the collector needs from the startup of the measurement in the
+            collector dictionary.
+
+            :param args: Any args that fun needs.
+            :param kwargs: Any kwargs that fun needs.
+            """
+            self.communicator['setup_return'] = fun(*args, **kwargs)
+            return None
+
+        return start
+
+    def collector(self, **kwargs) -> Generator[Dict, None, None]:
+        """
+        Data collection generator. The generator should contain all the logic of waiting for the asynchronous data.
+        Its should yield a dictionary with the name of the of the DataSpecs as keywords and numpy arrays with the values
+        collected from the instrument. The generator should exhaust itself once all the data produced by the
+        measurement has been generated
+
+        :param kwargs: Any kwargs necessary for the specific implementation of the collector.
+        """
+        data = {}
+        yield data
+
+
+def create_background_sweep(decorated_measurement_function: Callable, **collector_kwargs) -> Sweep:
+    """
+    Creates the Sweep object from a measurement function decorated with any implementation of BackgroundRecordingBase.
+
+    :param decorated_measurement_function: Measurement function decorated with
+                                           a BackgroundRecordingBase class decorator.
+    :param collector_kwargs: Any kwargs that the collector needs.
+    """
+    sweep = decorated_measurement_function(**collector_kwargs)
+    return sweep
