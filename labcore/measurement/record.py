@@ -243,10 +243,15 @@ class FunctionToRecords:
         self.data_specs = make_data_specs(*data_specs)
         update_wrapper(self, func)
 
+        self._args: List[Any] = []
+        self._kwargs: Dict[str, Any] = {}
+
     def get_data_specs(self):
         return self.data_specs
 
     def __call__(self, *args, **kwargs):
+        args = tuple(self._args + list(args))
+        kwargs.update(self._kwargs)
         func_args, func_kwargs = map_input_to_signature(self.func_sig,
                                                         *args, **kwargs)
         ret = self.func(*func_args, **func_kwargs)
@@ -257,6 +262,17 @@ class FunctionToRecords:
         ret = self.func.__name__ + str(self.func_sig)
         ret += f" as {dnames}"
         return ret
+
+    def using(self, *args, **kwargs) -> "FunctionToRecords":
+        """Set the default positional and keyword arguments that will be
+        used when the function is called.
+
+        :returns: a copy of the object. This is to allow setting different
+            defaults to multiple uses of the function.
+        """
+        self._args = list(args)
+        self._kwargs = kwargs
+        return copy.copy(self)
 
 
 # TODO: support for qcodes parameters as actions. should automatically
