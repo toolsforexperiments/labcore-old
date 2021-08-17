@@ -210,7 +210,7 @@ class Sweep:
             pass_kwargs=self.pass_kwargs,
             action_kwargs=self.action_kwargs)
 
-    def set_action_opts(self, **action_kwargs: Dict[str, Any]):
+    def set_options(self, **action_kwargs: Dict[str, Any]):
         """configure the sweep actions
 
         :param action_kwargs: Keyword arguments to pass to action functions
