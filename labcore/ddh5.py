@@ -646,7 +646,8 @@ def _create_datadict_structure(sweep: Sweep) -> DataDict:
 
 def _check_none(line: Dict) -> bool:
     """
-    Checks if the values in a Dict are all None. Returns True if all values are None, False otherwise.
+    Checks if the values in a Dict are all None.
+    :returns: True if all values are None, False otherwise.
     """
     for arg in line.keys():
         if line[arg] is not None:

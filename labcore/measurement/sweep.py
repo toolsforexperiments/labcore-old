@@ -36,6 +36,7 @@ def sweep_parameter(param: ParamSpecType, sweep_iterable: Iterable,
     """Create a sweep over a parameter.
 
     :param param: one of:
+
         - a string: generates an independent, scalar data parameter
         - a tuple or list: will be passed to the constructor of
           :class:`.DataSpec`; see :func:`.make_data_spec`.
@@ -453,7 +454,7 @@ class BackgroundRecordingBase:
     and a custom collector.
     Auxiliary functions for the start_wrapper and collector should also be located in this class.
 
-    :param *specs: A list of the DataSpecs to record the data produced.
+    :param specs: A list of the DataSpecs to record the data produced.
     """
 
     def __init__(self, *specs):
@@ -487,8 +488,8 @@ class BackgroundRecordingBase:
         Wraps the start function. setup_wrapper should consist of another function inside of it decorated with @wraps
         with fun as its argument.
         In this case the wrapped function is setup.
-        Setup should accept the *args and **kwargs of fun. It should also place any returns from fun
-         in the communicator. setup_wrapper needs to return the wrapped function (setup)
+        Setup should accept the \*args and \**kwargs of fun. It should also place any returns from fun
+        in the communicator. setup_wrapper needs to return the wrapped function (setup)
 
         :param fun: The measurement function. In the case of the OPX this would be the function that returns the QUA
                     code with any arguments that it might use.
@@ -528,6 +529,7 @@ def create_background_sweep(decorated_measurement_function: Callable, **collecto
     :param decorated_measurement_function: Measurement function decorated with
                                            a BackgroundRecordingBase class decorator.
     :param collector_kwargs: Any kwargs that the collector needs.
+    :returns: The newly created sweep.
     """
     sweep = decorated_measurement_function(**collector_kwargs)
     return sweep
