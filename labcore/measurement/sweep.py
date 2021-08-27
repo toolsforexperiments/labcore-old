@@ -3,6 +3,7 @@ from typing import Iterable, Callable, Union, Tuple, Any, Optional, Dict, List, 
 import collections
 import logging
 from functools import wraps
+import copy
 
 try:
     from qcodes import Parameter as QCParameter
@@ -108,6 +109,13 @@ class Sweep:
         for p in ['_state', '_pass_kwargs', '_action_kwargs']:
             if hasattr(src, p):
                 setattr(target, p, getattr(src, p))
+                iterable = getattr(target.pointer, 'iterable', None)
+                if iterable is not None and hasattr(iterable, 'first'):
+                    first = getattr(iterable, 'first')
+                    setattr(first, p, getattr(src, p))
+                if iterable is not None and hasattr(iterable, 'second'):
+                    second = getattr(iterable, 'second')
+                    setattr(second, p, getattr(src, p))
 
     def __init__(self, pointer: Optional[Iterable], *actions: Callable):
         """Constructor of :class:`.Sweep`."""
@@ -456,7 +464,7 @@ class BackgroundRecordingBase:
     :param *specs: A list of the DataSpecs to record the data produced.
     """
 
-    def __init__(self, *specs):
+    def __init__(self, *specs: DataSpec):
         self.specs = specs
         self.communicator = {}
 
@@ -481,6 +489,12 @@ class BackgroundRecordingBase:
             return start_sweep + collector_sweep
 
         return sweep
+
+    def get_spec(self, name: str) -> DataSpec:
+        for s in self.specs:
+            if s.name == name:
+                return s
+        raise RuntimeError(f'No data named {name} specified.')
 
     def wrap_start(self, fun: Callable) -> Callable:
         """

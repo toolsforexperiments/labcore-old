@@ -86,7 +86,7 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str) -> None:
     data_dict = _create_datadict_structure(sweep)
 
     # Creates a file even when it fails.
-    with DDH5Writer(data_dir, data_dict, name=name) as writer:
+    with DDH5Writer(data_dict, data_dir, name=name) as writer:
         for line in sweep:
             if not _check_none(line):
                 writer.add_data(**line)
