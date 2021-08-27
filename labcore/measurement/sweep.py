@@ -1,8 +1,10 @@
 import itertools
+import inspect
 from typing import Iterable, Callable, Union, Tuple, Any, Optional, Dict, List, Generator
 import collections
 import logging
-from functools import wraps
+from functools import wraps, update_wrapper
+import copy
 
 try:
     from qcodes import Parameter as QCParameter
@@ -13,7 +15,8 @@ except ImportError:
 
 from .record import produces_record, DataSpec, IteratorToRecords, \
     DataSpecFromTupleType, record_as, combine_data_specs, independent, \
-    make_data_spec, data_specs_label
+    make_data_spec, data_specs_label, DataSpecCreationType, make_data_specs, \
+    FunctionToRecords, map_input_to_signature
 from ..utils import indent_text
 
 
@@ -26,6 +29,55 @@ else:
     ParamSpecType = Union[str, DataSpecFromTupleType, DataSpec]
 
 
+# Pointer tools
+class PointerFunction(FunctionToRecords):
+    """A class that allows using a generator function as a pointer."""
+
+    def _iterator2records(self, *args, **kwargs):
+        func_args, func_kwargs = map_input_to_signature(self.func_sig,
+                                                        *args, **kwargs)
+        ret = record_as(self.func(*func_args, **func_kwargs), *self.data_specs)
+        return ret
+
+    def __call__(self, *args, **kwargs):
+        args = tuple(self._args + list(args))
+        kwargs.update(self._kwargs)
+        return self._iterator2records(*args, **kwargs)
+
+    def __iter__(self):
+        return iter(self._iterator2records(*self._args, **self._kwargs))
+
+    def get_data_specs(self):
+        return self.data_specs
+
+    def using(self, *args, **kwargs) -> "PointerFunction":
+        """Set the default positional and keyword arguments that will be
+        used when the function is called.
+
+        :returns: a copy of the object. This is to allow setting different
+            defaults to multiple uses of the function.
+        """
+        self._args = list(args)
+        self._kwargs = kwargs
+        return copy.copy(self)
+
+
+def pointer(*data_specs: DataSpecCreationType) -> Callable:
+    """Create a decorator for functions that return pointer generators."""
+    def decorator(func: Callable):
+        return PointerFunction(func, *data_specs)
+    return decorator
+
+
+def as_pointer(fun: Callable, *data_specs: DataSpecCreationType):
+    """Convenient in-line creation of a pointer function."""
+    return pointer(*data_specs)(fun)
+
+
+null_pointer = [None]
+
+
+# sweep tools
 def once(action: Callable) -> "Sweep":
     """Return a sweep that executes the action once."""
     return Sweep(null_pointer, action)
@@ -66,9 +118,6 @@ def sweep_parameter(param: ParamSpecType, sweep_iterable: Iterable,
 
     record_iterator = IteratorToRecords(sweep_iterable, param_ds)
     return Sweep(record_iterator, *actions)
-
-
-null_pointer = [None]
 
 
 def null_action():
@@ -119,6 +168,8 @@ class Sweep:
             self.pointer = null_pointer
         elif isinstance(pointer, (collections.abc.Iterable, Sweep)):
             self.pointer = pointer
+        # elif callable(pointer):
+        #     self.pointer = pointer
         else:
             raise TypeError('pointer needs to be iterable.')
 
@@ -210,6 +261,8 @@ class Sweep:
             pass_kwargs=self.pass_kwargs,
             action_kwargs=self.action_kwargs)
 
+    # FIXME: currently this only works for actions -- should be used also
+    #   for pointer funcs?
     def set_options(self, **action_kwargs: Dict[str, Any]):
         """configure the sweep actions
 
