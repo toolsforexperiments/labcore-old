@@ -3,7 +3,7 @@ import inspect
 from typing import Iterable, Callable, Union, Tuple, Any, Optional, Dict, List, Generator
 import collections
 import logging
-from functools import wraps, update_wrapper
+from functools import wraps, update_wrapper, partial
 import copy
 
 try:
@@ -57,19 +57,20 @@ class PointerFunction(FunctionToRecords):
         :returns: a copy of the object. This is to allow setting different
             defaults to multiple uses of the function.
         """
-        self._args = list(args)
-        self._kwargs = kwargs
-        return copy.copy(self)
+        ret = copy.copy(self)
+        ret._args = list(args)
+        ret._kwargs = kwargs
+        return ret
 
 
 def pointer(*data_specs: DataSpecCreationType) -> Callable:
     """Create a decorator for functions that return pointer generators."""
-    def decorator(func: Callable):
+    def decorator(func: Callable) -> PointerFunction:
         return PointerFunction(func, *data_specs)
     return decorator
 
 
-def as_pointer(fun: Callable, *data_specs: DataSpecCreationType):
+def as_pointer(fun: Callable, *data_specs: DataSpecCreationType) -> PointerFunction:
     """Convenient in-line creation of a pointer function."""
     return pointer(*data_specs)(fun)
 
@@ -151,10 +152,46 @@ class Sweep:
     pass_on_none = False
 
     @staticmethod
-    def link_sweep_properties(src: "Sweep", target: "Sweep"):
-        """Share state properties between sweeps."""
+    def update_option_dict(src: Dict[str, Any], target: Dict[str, Any], level: int) -> None:
+        """Rules:
+        """
+        if not isinstance(src, dict) or not isinstance(target, dict):
+            raise ValueError('inputs need to be dictionaries.')
 
-        for p in ['_state', '_pass_kwargs', '_action_kwargs']:
+        for k, v in src.items():
+            if k in target:
+                if isinstance(v, dict) and level > 0:
+                    Sweep.update_option_dict(src[k], target[k], level=level-1)
+            else:
+                target[k] = v
+
+    @staticmethod
+    def propagate_sweep_options(sweep: "Sweep"):
+
+        try:
+            first = sweep.pointer.iterable.first
+            Sweep.copy_sweep_options(sweep, first)
+        except AttributeError:
+            pass
+
+        try:
+            second = sweep.pointer.iterable.second
+            Sweep.copy_sweep_options(sweep, second)
+        except AttributeError:
+            pass
+
+    @staticmethod
+    def copy_sweep_options(src: "Sweep", target: Optional["Sweep"]):
+        if src is target:
+            return
+
+        Sweep.update_option_dict(src._action_kwargs, target._action_kwargs, level=2)
+        Sweep.propagate_sweep_options(target)
+
+    @staticmethod
+    def link_sweep_properties(src: "Sweep", target: "Sweep") -> None:
+        """Share state properties between sweeps."""
+        for p in ['_state', '_pass_kwargs']:
             if hasattr(src, p):
                 setattr(target, p, getattr(src, p))
                 iterable = getattr(target.pointer, 'iterable', None)
@@ -164,6 +201,8 @@ class Sweep:
                 if iterable is not None and hasattr(iterable, 'second'):
                     second = getattr(iterable, 'second')
                     setattr(second, p, getattr(src, p))
+
+        Sweep.copy_sweep_options(src, target)
 
     def __init__(self, pointer: Optional[Iterable], *actions: Callable):
         """Constructor of :class:`.Sweep`."""
@@ -277,6 +316,7 @@ class Sweep:
         """
         for func, val in action_kwargs.items():
             self.action_kwargs[func] = val
+            Sweep.propagate_sweep_options(self)
 
     def get_data_specs(self) -> Tuple[DataSpec, ...]:
         """Return the data specs of the sweep."""
@@ -501,7 +541,7 @@ class NestSweeps(CombineSweeps):
                 yield ret
 
 
-class BackgroundRecordingBase:
+class AsyncRecord:
     """
     Base class decorator used to record asynchronous data from instrument.
     Use the decorator with create_background_sweep function to create Sweeps that collect asynchronous data from
@@ -514,7 +554,9 @@ class BackgroundRecordingBase:
     :param *specs: A list of the DataSpecs to record the data produced.
     """
 
-    def __init__(self, *specs: DataSpec):
+    wrapped_setup: Callable
+
+    def __init__(self, *specs):
         self.specs = specs
         self.communicator = {}
 
@@ -524,7 +566,7 @@ class BackgroundRecordingBase:
         of 2 different Sweeps, the setup sweep and the collector Sweep.
         """
 
-        def sweep(**collector_kwargs) -> Sweep:
+        def sweep(collector_options={}, **setup_kwargs) -> Sweep:
             """
             Returns a Sweep comprised of 2 different Sweeps: start_sweep and collector_sweep.
             start_sweep should perform any setup actions as well as starting the actual experiment. This sweep is only
@@ -533,20 +575,15 @@ class BackgroundRecordingBase:
 
             :param collector_kwargs: Any arguments that the collector needs.
             """
-
-            start_sweep = once(self.wrap_start(fun))
-            collector_sweep = Sweep(record_as(self.collector(**collector_kwargs), *self.specs))
-            return start_sweep + collector_sweep
+            start_sweep = once(self.wrap_setup(fun))
+            collector_sweep = Sweep(as_pointer(self.collect, *self.specs).using(**collector_options))
+            ret = start_sweep + collector_sweep
+            ret.set_options(**{fun.__name__: setup_kwargs})
+            return ret
 
         return sweep
 
-    def get_spec(self, name: str) -> DataSpec:
-        for s in self.specs:
-            if s.name == name:
-                return s
-        raise RuntimeError(f'No data named {name} specified.')
-
-    def wrap_start(self, fun: Callable) -> Callable:
+    def wrap_setup(self, fun: Callable, *args: Any, **kwargs: Any) -> Callable:
         """
         Wraps the start function. setup_wrapper should consist of another function inside of it decorated with @wraps
         with fun as its argument.
@@ -557,41 +594,12 @@ class BackgroundRecordingBase:
         :param fun: The measurement function. In the case of the OPX this would be the function that returns the QUA
                     code with any arguments that it might use.
         """
+        self.wrapped_setup = partial(self.setup, fun, *args, **kwargs)
+        update_wrapper(self.wrapped_setup, fun)
+        return self.wrapped_setup
 
-        @wraps(fun)
-        def start(*args, **kwargs) -> None:
-            """
-            Starts the experiment and saves anything that the collector needs from the startup of the measurement in the
-            collector dictionary.
+    def setup(self, fun, *args, **kwargs):
+        return fun(*args, **kwargs)
 
-            :param args: Any args that fun needs.
-            :param kwargs: Any kwargs that fun needs.
-            """
-            self.communicator['setup_return'] = fun(*args, **kwargs)
-            return None
-
-        return start
-
-    def collector(self, **kwargs) -> Generator[Dict, None, None]:
-        """
-        Data collection generator. The generator should contain all the logic of waiting for the asynchronous data.
-        Its should yield a dictionary with the name of the of the DataSpecs as keywords and numpy arrays with the values
-        collected from the instrument. The generator should exhaust itself once all the data produced by the
-        measurement has been generated
-
-        :param kwargs: Any kwargs necessary for the specific implementation of the collector.
-        """
-        data = {}
-        yield data
-
-
-def create_background_sweep(decorated_measurement_function: Callable, **collector_kwargs) -> Sweep:
-    """
-    Creates the Sweep object from a measurement function decorated with any implementation of BackgroundRecordingBase.
-
-    :param decorated_measurement_function: Measurement function decorated with
-                                           a BackgroundRecordingBase class decorator.
-    :param collector_kwargs: Any kwargs that the collector needs.
-    """
-    sweep = decorated_measurement_function(**collector_kwargs)
-    return sweep
+    def collect(self, *args, **kwargs) -> Generator[Dict, None, None]:
+        yield {}
