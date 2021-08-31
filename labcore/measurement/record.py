@@ -270,9 +270,10 @@ class FunctionToRecords:
         :returns: a copy of the object. This is to allow setting different
             defaults to multiple uses of the function.
         """
-        self._args = list(args)
-        self._kwargs = kwargs
-        return copy.copy(self)
+        ret = copy.copy(self)
+        ret._args = list(args)
+        ret._kwargs = kwargs
+        return ret
 
 
 # TODO: support for qcodes parameters as actions. should automatically
