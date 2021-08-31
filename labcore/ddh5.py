@@ -1,3 +1,6 @@
+
+from .measurement import *
+
 """plottr.data.datadict_storage
 
 Provides file-storage tools for the DataDict class.
