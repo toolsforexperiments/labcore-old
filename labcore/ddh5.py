@@ -22,6 +22,7 @@ from types import TracebackType
 
 import numpy as np
 import h5py
+import json
 
 from plottr.data.datadict import DataDict, is_meta_key
 from plottr.data.datadict_storage import *
@@ -74,19 +75,31 @@ def _check_none(line: Dict) -> bool:
     return True
 
 
-def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str) -> None:
+def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **meta) -> None:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
 
     :param sweep: Sweep object to iterate through.
     :param data_dir: Directory of file location
     :param name: name of the file
-    :param prt: Bool, if True, the function will print every result coming from the sweep. Default, False.
     """
     data_dict = _create_datadict_structure(sweep)
 
     # Creates a file even when it fails.
     with DDH5Writer(data_dict, data_dir, name=name) as writer:
+
+        # Saving meta-data
+
+        dir = writer.filepath.removesuffix(writer.filename)
+        for item in meta:
+            if isinstance(meta[item], dict):
+                with open(dir+'\\'+item+'.json', 'w') as f:
+                    json.dump(meta[item], f, indent=2, sort_keys=True)
+
+            else:
+                print(f'{item} is currently not supported for disk saving.')
+
+        # Save data.
         for line in sweep:
             if not _check_none(line):
                 writer.add_data(**line)
