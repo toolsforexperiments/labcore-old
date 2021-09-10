@@ -23,6 +23,7 @@ from types import TracebackType
 import numpy as np
 import h5py
 import json
+import pickle
 
 from plottr.data.datadict import DataDict, is_meta_key
 from plottr.data.datadict_storage import *
@@ -74,8 +75,13 @@ def _check_none(line: Dict) -> bool:
             return False
     return True
 
+def _save_dictionary(dict: Dict, filepath: str) -> None:
 
-def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **meta) -> None:
+    with open(filepath, 'w') as f:
+        json.dump(dict, f, indent=2, sort_keys=True)
+
+
+def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **saving_dictionaries) -> None:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
 
@@ -89,15 +95,31 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **meta) -> None:
     with DDH5Writer(data_dict, data_dir, name=name) as writer:
 
         # Saving meta-data
-
         dir = writer.filepath.removesuffix(writer.filename)
-        for item in meta:
-            if isinstance(meta[item], dict):
-                with open(dir+'\\'+item+'.json', 'w') as f:
-                    json.dump(meta[item], f, indent=2, sort_keys=True)
+        for key, value in saving_dictionaries.items():
+            if isinstance(value, dict):
+                try:
+                    _save_dictionary(value, dir + '\\' + key + '.json')
+                except TypeError as e:
+                    converted = False # Flag to see if there has been a converted ndarray.
+                    for k, v in value.items():
+                        if isinstance(v, np.ndarray):
+                            value[k] = v.tolist()
+                            converted = True
 
+                    if converted:
+                        try:
+                            _save_dictionary(value, dir + '\\' + key + '.json')
+                        except TypeError as error:
+                            print(f'{key} has not been able to be fully save to json: {error.args}')
+                    else:
+                        print(f'{key} has not been able to be fully save to json: {e.args}')
             else:
-                print(f'{item} is currently not supported for disk saving.')
+                try:
+                    with open( dir + '\\' + key + '.pickle', 'wb') as f:
+                        pickle.dump(value,f)
+                except erorrisimo:
+                    print(f'{type(value)} is currently not supported for storage saving.')
 
         # Save data.
         for line in sweep:
