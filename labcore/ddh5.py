@@ -109,14 +109,15 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **extra_saving_it
         # Saving meta-data
         dir = writer.filepath.removesuffix(writer.filename)
         for key, value in extra_saving_items.items():
-            dictionary_dir = dir + '\\' + key + '.json'
+            pickle_directory = dir + '\\' + key + '.pickle'
             if isinstance(value, dict):
+                dictionary_directory = dir + '\\' + key + '.json'
                 try:
-                    _save_dictionary(value, dictionary_dir)
+                    _save_dictionary(value, dictionary_directory)
                 except TypeError as error:
                     # Delete the file created by _save_dictionary. This file does not contain the complete dictionary.
-                    if os.path.isfile(dictionary_dir):
-                        os.remove(dictionary_dir)
+                    if os.path.isfile(dictionary_directory):
+                        os.remove(dictionary_directory)
 
                     converted = False # Flag to see if there has been a converted ndarray.
                     for k, v in value.items():
@@ -125,21 +126,21 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **extra_saving_it
                             converted = True
                     if converted:
                         try:
-                            _save_dictionary(value, dir + '\\' + key + '.json')
+                            _save_dictionary(value, pickle_directory)
                         except TypeError as e:
 
-                            if os.path.isfile(dictionary_dir):
-                                os.remove(dictionary_dir)
+                            if os.path.isfile(dictionary_directory):
+                                os.remove(dictionary_directory)
 
                             print(f'{key} has not been able to save to json: {e.args}.'
                                   f' The item will be pickled instead.')
-                            _pickle_and_save(value, dir + '\\' + key + '.pickle')
+                            _pickle_and_save(value, pickle_directory)
                     else:
                         print(f'{key} has not been able to save to json: {error.args}.'
                               f' The item will be pickled instead.')
-                        _pickle_and_save(value, dir + '\\' + key + '.pickle')
+                        _pickle_and_save(value, pickle_directory)
             else:
-                _pickle_and_save(value, dir + '\\' + key + '.pickle')
+                _pickle_and_save(value, pickle_directory)
 
 
         # Save data.
