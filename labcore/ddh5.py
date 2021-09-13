@@ -98,7 +98,7 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **extra_saving_it
     :param name: Name of the file.
     :param extra_saving_items: Kwargs for extra objects that should be saved. If the kwarg is a dictionary, the function
         will try and save it as a JSON file. If the dictionary contains objects that are not JSON serializable it will
-        be pickled. Any other kind of object will be pickled too.
+        be pickled. Any other kind of object will be pickled too. The files will have their keys as names.
 
     """
     data_dict = _create_datadict_structure(sweep)
