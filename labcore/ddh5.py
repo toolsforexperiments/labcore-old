@@ -109,9 +109,9 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, **extra_saving_it
         # Saving meta-data
         dir = writer.filepath.removesuffix(writer.filename)
         for key, value in extra_saving_items.items():
-            pickle_directory = dir + '\\' + key + '.pickle'
+            pickle_directory = os.path.join(dir, key + '.pickle')
             if isinstance(value, dict):
-                dictionary_directory = dir + '\\' + key + '.json'
+                dictionary_directory = os.path.join(dir, key + '.json')
                 try:
                     _save_dictionary(value, dictionary_directory)
                 except TypeError as error:
