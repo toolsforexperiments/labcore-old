@@ -19,6 +19,8 @@ import time
 from enum import Enum
 from typing import Any, Union, Optional, Dict, Type, Collection
 from types import TracebackType
+import json
+import pickle
 
 import numpy as np
 import h5py
@@ -81,17 +83,22 @@ def _check_none(line: Dict, all: bool = True) -> bool:
     return False
 
 def _save_dictionary(dict: Dict, filepath: str) -> None:
-
     with open(filepath, 'w') as f:
-        json.dump(dict, f, indent=2, sort_keys=True)
+        json.dump(dict, f, indent=2, sort_keys=True, cls=NumpyEncoder)
 
 def _pickle_and_save(obj, filepath: str) -> None:
-
     try:
         with open(filepath, 'wb') as f:
             pickle.dump(obj, f)
     except TypeError as pickle_error:
         print(f'Object could not be pickled: {pickle_error.args}')
+
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 
 def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_results: bool = True,
@@ -116,7 +123,12 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_r
 
         # Saving meta-data
         dir = writer.filepath.removesuffix(writer.filename)
-        for key, value in extra_saving_items.items():
+        for key, val in extra_saving_items.items():
+            if callable(val):
+                value = val()
+            else:
+                value = val
+
             pickle_path_file = os.path.join(dir, key + '.pickle')
             if isinstance(value, dict):
                 json_path_file = os.path.join(dir, key + '.json')
@@ -127,22 +139,6 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_r
                     if os.path.isfile(json_path_file):
                         os.remove(json_path_file)
 
-                    converted = False  # Flag to see if there has been a converted ndarray.
-                    for k, v in value.items():
-                        if isinstance(v, np.ndarray):
-                            value[k] = v.tolist()
-                            converted = True
-                    if converted:
-                        try:
-                            _save_dictionary(value, json_path_file)
-                        except TypeError as e:
-
-                            if os.path.isfile(json_path_file):
-                                os.remove(json_path_file)
-
-                            print(f'{key} has not been able to save to json: {e.args}.'
-                                  f' The item will be pickled instead.')
-                            _pickle_and_save(value, pickle_path_file)
                     else:
                         print(f'{key} has not been able to save to json: {error.args}.'
                               f' The item will be pickled instead.')
