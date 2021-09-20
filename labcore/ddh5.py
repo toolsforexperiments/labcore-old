@@ -80,26 +80,78 @@ def _check_none(line: Dict, all: bool = True) -> bool:
                 return True
     return False
 
+def _save_dictionary(dict: Dict, filepath: str) -> None:
 
-def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_results: bool = True) -> None:
+    with open(filepath, 'w') as f:
+        json.dump(dict, f, indent=2, sort_keys=True)
+
+def _pickle_and_save(obj, filepath: str) -> None:
+
+    try:
+        with open(filepath, 'wb') as f:
+            pickle.dump(obj, f)
+    except TypeError as pickle_error:
+        print(f'Object could not be pickled: {pickle_error.args}')
+
+
+def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_results: bool = True,
+                       **extra_saving_items) -> None:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
 
     :param sweep: Sweep object to iterate through.
-    :param data_dir: Directory of file location
-    :param name: name of the file
-    :param prt: Bool, if True, the function will print every result coming from the sweep. Default, False.
+    :param data_dir: Directory of file location.
+    :param name: Name of the file.
+    :param ignore_all_None_results: if ``True``, don't save any records that contain a ``None``.
+        if ``False``, only do not save records that are all-``None``.
+    :param extra_saving_items: Kwargs for extra objects that should be saved. If the kwarg is a dictionary, the function
+        will try and save it as a JSON file. If the dictionary contains objects that are not JSON serializable it will
+        be pickled. Any other kind of object will be pickled too. The files will have their keys as names.
+
     """
     data_dict = _create_datadict_structure(sweep)
 
     # Creates a file even when it fails.
     with DDH5Writer(data_dict, data_dir, name=name) as writer:
-        for line in sweep:
-            for k, v in line.items():
+
+        # Saving meta-data
+        dir = writer.filepath.removesuffix(writer.filename)
+        for key, value in extra_saving_items.items():
+            pickle_path_file = os.path.join(dir, key + '.pickle')
+            if isinstance(value, dict):
+                json_path_file = os.path.join(dir, key + '.json')
                 try:
-                    info = v.shape
-                except:
-                    info = v
+                    _save_dictionary(value, json_path_file)
+                except TypeError as error:
+                    # Delete the file created by _save_dictionary. This file does not contain the complete dictionary.
+                    if os.path.isfile(json_path_file):
+                        os.remove(json_path_file)
+
+                    converted = False  # Flag to see if there has been a converted ndarray.
+                    for k, v in value.items():
+                        if isinstance(v, np.ndarray):
+                            value[k] = v.tolist()
+                            converted = True
+                    if converted:
+                        try:
+                            _save_dictionary(value, json_path_file)
+                        except TypeError as e:
+
+                            if os.path.isfile(json_path_file):
+                                os.remove(json_path_file)
+
+                            print(f'{key} has not been able to save to json: {e.args}.'
+                                  f' The item will be pickled instead.')
+                            _pickle_and_save(value, pickle_path_file)
+                    else:
+                        print(f'{key} has not been able to save to json: {error.args}.'
+                              f' The item will be pickled instead.')
+                        _pickle_and_save(value, pickle_path_file)
+            else:
+                _pickle_and_save(value, pickle_path_file)
+
+        # Save data.
+        for line in sweep:
             if not _check_none(line, all=ignore_all_None_results):
                 writer.add_data(**line)
 
