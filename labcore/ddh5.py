@@ -64,17 +64,24 @@ def _create_datadict_structure(sweep: Sweep) -> DataDict:
     return data_dict
 
 
-def _check_none(line: Dict) -> bool:
+def _check_none(line: Dict, all: bool = True) -> bool:
     """
     Checks if the values in a Dict are all None. Returns True if all values are None, False otherwise.
     """
-    for arg in line.keys():
-        if line[arg] is not None:
-            return False
-    return True
+    if all:
+        for k, v in line.items():
+            if v is None:
+                return True
+        return False
+
+    if len(set(line.values())) == 1:
+        for k, v in line.items():
+            if v is None:
+                return True
+    return False
 
 
-def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str) -> None:
+def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_results: bool = True) -> None:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
 
@@ -88,7 +95,12 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str) -> None:
     # Creates a file even when it fails.
     with DDH5Writer(data_dict, data_dir, name=name) as writer:
         for line in sweep:
-            if not _check_none(line):
+            for k, v in line.items():
+                try:
+                    info = v.shape
+                except:
+                    info = v
+            if not _check_none(line, all=ignore_all_None_results):
                 writer.add_data(**line)
 
     print('The measurement has finished successfully and all of the data has been saved.')
