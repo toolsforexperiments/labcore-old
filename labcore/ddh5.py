@@ -22,6 +22,8 @@ import time
 from enum import Enum
 from typing import Any, Union, Optional, Dict, Type, Collection
 from types import TracebackType
+import json
+import pickle
 
 import numpy as np
 import h5py
@@ -67,32 +69,90 @@ def _create_datadict_structure(sweep: Sweep) -> DataDict:
     return data_dict
 
 
-def _check_none(line: Dict) -> bool:
+def _check_none(line: Dict, all: bool = True) -> bool:
     """
     Checks if the values in a Dict are all None.
     :returns: True if all values are None, False otherwise.
     """
-    for arg in line.keys():
-        if line[arg] is not None:
-            return False
-    return True
+    if all:
+        for k, v in line.items():
+            if v is None:
+                return True
+        return False
+
+    if len(set(line.values())) == 1:
+        for k, v in line.items():
+            if v is None:
+                return True
+    return False
+
+def _save_dictionary(dict: Dict, filepath: str) -> None:
+    with open(filepath, 'w') as f:
+        json.dump(dict, f, indent=2, sort_keys=True, cls=NumpyEncoder)
+
+def _pickle_and_save(obj, filepath: str) -> None:
+    try:
+        with open(filepath, 'wb') as f:
+            pickle.dump(obj, f)
+    except TypeError as pickle_error:
+        print(f'Object could not be pickled: {pickle_error.args}')
 
 
-def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str) -> None:
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+
+
+def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_results: bool = True,
+                       **extra_saving_items) -> None:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
 
     :param sweep: Sweep object to iterate through.
-    :param data_dir: Directory of file location
-    :param name: name of the file
-    :param prt: Bool, if True, the function will print every result coming from the sweep. Default, False.
+    :param data_dir: Directory of file location.
+    :param name: Name of the file.
+    :param ignore_all_None_results: if ``True``, don't save any records that contain a ``None``.
+        if ``False``, only do not save records that are all-``None``.
+    :param extra_saving_items: Kwargs for extra objects that should be saved. If the kwarg is a dictionary, the function
+        will try and save it as a JSON file. If the dictionary contains objects that are not JSON serializable it will
+        be pickled. Any other kind of object will be pickled too. The files will have their keys as names.
+
     """
     data_dict = _create_datadict_structure(sweep)
 
     # Creates a file even when it fails.
     with DDH5Writer(data_dict, data_dir, name=name) as writer:
+
+        # Saving meta-data
+        dir = writer.filepath.removesuffix(writer.filename)
+        for key, val in extra_saving_items.items():
+            if callable(val):
+                value = val()
+            else:
+                value = val
+
+            pickle_path_file = os.path.join(dir, key + '.pickle')
+            if isinstance(value, dict):
+                json_path_file = os.path.join(dir, key + '.json')
+                try:
+                    _save_dictionary(value, json_path_file)
+                except TypeError as error:
+                    # Delete the file created by _save_dictionary. This file does not contain the complete dictionary.
+                    if os.path.isfile(json_path_file):
+                        os.remove(json_path_file)
+
+                    else:
+                        print(f'{key} has not been able to save to json: {error.args}.'
+                              f' The item will be pickled instead.')
+                        _pickle_and_save(value, pickle_path_file)
+            else:
+                _pickle_and_save(value, pickle_path_file)
+
+        # Save data.
         for line in sweep:
-            if not _check_none(line):
+            if not _check_none(line, all=ignore_all_None_results):
                 writer.add_data(**line)
 
     print('The measurement has finished successfully and all of the data has been saved.')
