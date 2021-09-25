@@ -1,3 +1,6 @@
+
+from .measurement import *
+
 """plottr.data.datadict_storage
 
 Provides file-storage tools for the DataDict class.
@@ -68,7 +71,8 @@ def _create_datadict_structure(sweep: Sweep) -> DataDict:
 
 def _check_none(line: Dict, all: bool = True) -> bool:
     """
-    Checks if the values in a Dict are all None. Returns True if all values are None, False otherwise.
+    Checks if the values in a Dict are all None.
+    :returns: True if all values are None, False otherwise.
     """
     if all:
         for k, v in line.items():

@@ -85,13 +85,14 @@ def data_specs_label(*dspecs: DataSpec) -> str:
 def make_data_spec(value: DataSpecCreationType) -> DataSpec:
     """Instantiate a DataSpec object.
 
-    :param value: May be one of the following:
-        - a string: create a dependent with name given by the string
-        - a tuple of values that can be used to pass to the constructor
-          of :class:`.DataSpec`
-        - a dictionary, entries of which will be passed as keyword arguments
-          to the constructor of :class:`.DataSpec`
-        - a :class:`.DataSpec` instance
+    :param value:
+        May be one of the following with the following behavior:
+
+            - A string create a dependent with name given by the string
+            - A tuple of values that can be used to pass to the constructor of :class:`.DataSpec`
+            - A dictionary entries of which will be passed as keyword arguments to the constructor of :class:`.DataSpec`
+            - A :class:`.DataSpec` instance
+
     """
     if isinstance(value, str):
         return dependent(value)

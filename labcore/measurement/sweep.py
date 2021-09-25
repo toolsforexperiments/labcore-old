@@ -54,7 +54,7 @@ class PointerFunction(FunctionToRecords):
         """Set the default positional and keyword arguments that will be
         used when the function is called.
 
-        :returns: a copy of the object. This is to allow setting different
+        :returns: A copy of the object. This is to allow setting different
             defaults to multiple uses of the function.
         """
         ret = copy.copy(self)
@@ -88,16 +88,16 @@ def sweep_parameter(param: ParamSpecType, sweep_iterable: Iterable,
                     *actions: Callable) -> "Sweep":
     """Create a sweep over a parameter.
 
-    :param param: one of:
-        - a string: generates an independent, scalar data parameter
-        - a tuple or list: will be passed to the constructor of
-          :class:`.DataSpec`; see :func:`.make_data_spec`.
-        - a :class:`.DataSpec` instance.
-        - a qcodes parameter. In this case the parameter's ``set`` method is
-          called for each value during the iteration.
-    :param sweep_iterable: an iterable that generates the values the parameter
+    :param param: One of:
+
+        * A string: Generates an independent, scalar data parameter.
+        * A tuple or list: will be passed to the constructor of :class:`.DataSpec`; see :func:`.make_data_spec`.
+        * A :class:`.DataSpec` instance.
+        * A qcodes parameter. In this case the parameter's ``set`` method is called for each value during the iteration.
+
+    :param sweep_iterable: An iterable that generates the values the parameter
         will be set to.
-    :param actions: an arbitrary number of action functions.
+    :param actions: An arbitrary number of action functions.
     """
 
     if isinstance(param, str):
@@ -134,7 +134,7 @@ class Sweep:
     (see: :func:`.record_as`)
 
     :param pointer: An iterable that defines the steps over which we iterate
-    :param actions: a variable number of functions. Each will be called for
+    :param actions: A variable number of functions. Each will be called for
         each iteration step, with the pointer value(s) as arguments, provided
         the function can accept it.
     """
@@ -151,9 +151,10 @@ class Sweep:
     pass_on_returns = True
     pass_on_none = False
 
+    # TODO: Add the rules.
     @staticmethod
     def update_option_dict(src: Dict[str, Any], target: Dict[str, Any], level: int) -> None:
-        """Rules:
+        """Rules: work in progress :).
         """
         if not isinstance(src, dict) or not isinstance(target, dict):
             raise ValueError('inputs need to be dictionaries.')
@@ -308,7 +309,7 @@ class Sweep:
     # FIXME: currently this only works for actions -- should be used also
     #   for pointer funcs?
     def set_options(self, **action_kwargs: Dict[str, Any]):
-        """configure the sweep actions
+        """Configure the sweep actions.
 
         :param action_kwargs: Keyword arguments to pass to action functions
             format: {'<action_name>': {'key': 'value'}
@@ -551,7 +552,7 @@ class AsyncRecord:
     and a custom collector.
     Auxiliary functions for the start_wrapper and collector should also be located in this class.
 
-    :param *specs: A list of the DataSpecs to record the data produced.
+    :param specs: A list of the DataSpecs to record the data produced.
     """
 
     wrapped_setup: Callable
@@ -588,8 +589,8 @@ class AsyncRecord:
         Wraps the start function. setup_wrapper should consist of another function inside of it decorated with @wraps
         with fun as its argument.
         In this case the wrapped function is setup.
-        Setup should accept the *args and **kwargs of fun. It should also place any returns from fun
-         in the communicator. setup_wrapper needs to return the wrapped function (setup)
+        Setup should accept the \*args and \**kwargs of fun. It should also place any returns from fun
+        in the communicator. setup_wrapper needs to return the wrapped function (setup).
 
         :param fun: The measurement function. In the case of the OPX this would be the function that returns the QUA
                     code with any arguments that it might use.
