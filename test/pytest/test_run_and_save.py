@@ -13,7 +13,7 @@ import pickle
 import numpy as np
 import pytest
 
-from labcore.measurement import *
+from labcore.measurement import Sweep, recording, independent, dependent, sweep_parameter
 from labcore.ddh5 import run_and_save_sweep
 
 

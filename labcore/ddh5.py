@@ -1,6 +1,3 @@
-
-from .measurement import *
-
 """plottr.data.datadict_storage
 
 Provides file-storage tools for the DataDict class.
@@ -29,7 +26,7 @@ import numpy as np
 import h5py
 
 from plottr.data.datadict import DataDict, is_meta_key
-from plottr.data.datadict_storage import *
+from plottr.data.datadict_storage import DDH5Writer
 
 from .measurement.sweep import Sweep
 
