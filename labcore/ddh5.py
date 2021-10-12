@@ -17,10 +17,12 @@ underscore pre- and suffix.
 import os
 import time
 from enum import Enum
-from typing import Any, Union, Optional, Dict, Type, Collection
+from typing import Any, Union, Optional, Dict, Type, Collection, List
 from types import TracebackType
 import json
 import pickle
+import shutil
+import glob
 
 import numpy as np
 import h5py
@@ -102,7 +104,10 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_results: bool = True,
+def run_and_save_sweep(sweep: Sweep, data_dir: str,
+                       name: str,
+                       ignore_all_None_results: bool = True,
+                       archive_files: List[str]=[],
                        **extra_saving_items) -> None:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
@@ -123,7 +128,7 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_r
     with DDH5Writer(data_dict, data_dir, name=name) as writer:
 
         # Saving meta-data
-        dir = writer.filepath.removesuffix(writer.filename)
+        dir = writer.filepath.removesuffix(writer.filename) # Target directoy
         for key, val in extra_saving_items.items():
             if callable(val):
                 value = val()
@@ -146,6 +151,25 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str, name: str, ignore_all_None_r
                         _pickle_and_save(value, pickle_path_file)
             else:
                 _pickle_and_save(value, pickle_path_file)
+
+        # Save archive_files
+        archive_files_dir = os.path.join(dir, 'archive_files')
+        os.mkdir(archive_files_dir)
+        for path in archive_files:
+            if os.path.isdir(path):
+                folder_name = os.path.basename(path)
+                if folder_name == '':
+                    folder_name = os.path.basename(os.path.dirname(path))
+
+                shutil.copytree(path, os.path.join(archive_files_dir, folder_name), dirs_exist_ok=True)
+            elif os.path.isfile(path):
+                shutil.copy(path, archive_files_dir)
+            else:
+                matches = glob.glob(path, recursive=True)
+                if len(matches) == 0:
+                    raise FileNotFoundError(f'{path} could not be found.')
+                for file in matches:
+                    shutil.copy(file, archive_files_dir)
 
         # Save data.
         for line in sweep:
