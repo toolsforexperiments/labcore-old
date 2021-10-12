@@ -13,7 +13,7 @@ import pickle
 import numpy as np
 import pytest
 
-from labcore.measurement import Sweep, recording, independent, dependent, sweep_parameter
+from labcore.measurement import recording, independent, dependent, sweep_parameter
 from labcore.ddh5 import run_and_save_sweep
 
 
@@ -81,14 +81,14 @@ def test_simple_numpy_array_dictionary_saving(tmpdir):
     if os.path.isfile(json_file):
         with open(json_file, 'r') as f:
             loaded_dictionary = json.load(f)
-        assert loaded_dictionary == numpy_array_dictionary
+        np.testing.assert_equal(loaded_dictionary, numpy_array_dictionary)
     else:
         assert False
 
 
 def test_mixed_dictionary_with_numpy_array(tmpdir):
     datadir = tmpdir
-    run_and_save_sweep(sweep, datadir, 'saving_mixed_numpy_array_in_dictionary', metadata=numpy_array_dictionary)
+    run_and_save_sweep(sweep, datadir, 'saving_mixed_numpy_array_in_dictionary', metadata=mixed_numpy_dictionary)
     data_file_path = glob.glob(os.path.join(datadir, '**', '*.ddh5'), recursive=True)
 
     head, tail = os.path.split(data_file_path[0])
@@ -96,7 +96,7 @@ def test_mixed_dictionary_with_numpy_array(tmpdir):
     if os.path.isfile(json_file):
         with open(json_file, 'r') as f:
             loaded_dictionary = json.load(f)
-        assert loaded_dictionary == numpy_array_dictionary
+        np.testing.assert_equal(loaded_dictionary, mixed_numpy_dictionary)
     else:
         assert False
 
@@ -107,11 +107,10 @@ def test_nonjson_dictionary(tmpdir):
     data_file_path = glob.glob(os.path.join(datadir, '**', '*.ddh5'), recursive=True)
     head, tail = os.path.split(data_file_path[0])
     pickle_file = os.path.join(head, 'metadata.pickle')
-
     if os.path.isfile(pickle_file):
         with open(pickle_file, 'rb') as f:
             loaded_object = pickle.load(f)
-        assert loaded_object['non json object'].number == nonjson_dictionary['non json object'].number
+        np.testing.assert_equal(loaded_object, nonjson_dictionary)
     else:
         assert False
 
@@ -140,7 +139,7 @@ def test_everything_dictionary(tmpdir):
     if os.path.isfile(pickle_file):
         with open(pickle_file, 'rb') as f:
             loaded_object = pickle.load(f)
-        assert loaded_object == everything_dictionary
+        np.testing.assert_equal(loaded_object, everything_dictionary)
     else:
         assert False
 

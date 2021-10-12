@@ -145,10 +145,9 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str,
                     if os.path.isfile(json_path_file):
                         os.remove(json_path_file)
 
-                    else:
-                        print(f'{key} has not been able to save to json: {error.args}.'
-                              f' The item will be pickled instead.')
-                        _pickle_and_save(value, pickle_path_file)
+                    print(f'{key} has not been able to save to json: {error.args}.'
+                          f' The item will be pickled instead.')
+                    _pickle_and_save(value, pickle_path_file)
             else:
                 _pickle_and_save(value, pickle_path_file)
 
