@@ -107,7 +107,7 @@ class NumpyEncoder(json.JSONEncoder):
 def run_and_save_sweep(sweep: Sweep, data_dir: str,
                        name: str,
                        ignore_all_None_results: bool = True,
-                       archive_files: List[str]=[],
+                       archive_files: List[str]=None,
                        **extra_saving_items) -> None:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
@@ -152,23 +152,24 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str,
                 _pickle_and_save(value, pickle_path_file)
 
         # Save archive_files
-        archive_files_dir = os.path.join(dir, 'archive_files')
-        os.mkdir(archive_files_dir)
-        for path in archive_files:
-            if os.path.isdir(path):
-                folder_name = os.path.basename(path)
-                if folder_name == '':
-                    folder_name = os.path.basename(os.path.dirname(path))
+        if archive_files != None:
+            archive_files_dir = os.path.join(dir, 'archive_files')
+            os.mkdir(archive_files_dir)
+            for path in archive_files:
+                if os.path.isdir(path):
+                    folder_name = os.path.basename(path)
+                    if folder_name == '':
+                        folder_name = os.path.basename(os.path.dirname(path))
 
-                shutil.copytree(path, os.path.join(archive_files_dir, folder_name), dirs_exist_ok=True)
-            elif os.path.isfile(path):
-                shutil.copy(path, archive_files_dir)
-            else:
-                matches = glob.glob(path, recursive=True)
-                if len(matches) == 0:
-                    raise FileNotFoundError(f'{path} could not be found.')
-                for file in matches:
-                    shutil.copy(file, archive_files_dir)
+                    shutil.copytree(path, os.path.join(archive_files_dir, folder_name), dirs_exist_ok=True)
+                elif os.path.isfile(path):
+                    shutil.copy(path, archive_files_dir)
+                else:
+                    matches = glob.glob(path, recursive=True)
+                    if len(matches) == 0:
+                        print(f'{path} could not be found. Measurement will continue without archiving {path}')
+                    for file in matches:
+                        shutil.copy(file, archive_files_dir)
 
         # Save data.
         for line in sweep:
