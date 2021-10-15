@@ -9,6 +9,7 @@ import glob
 import os
 import json
 import pickle
+import shutil
 
 import numpy as np
 import pytest
@@ -56,7 +57,7 @@ everything_dictionary = {**simple_dictionary,
 
 numpy_array = np.random.random(20)
 
-
+# Saving meta-data tests.
 def test_simple_dictionary_saving(tmpdir):
     datadir = tmpdir
     run_and_save_sweep(sweep, datadir, 'dictionary_saving', metadata=simple_dictionary)
@@ -157,3 +158,96 @@ def test_numpy_array(tmpdir):
         assert np.array_equal(loaded_object, numpy_array)
     else:
         assert False
+
+# Archive files tests
+def test_archive_specific_file(tmpdir):
+    WD = os.getcwd()
+    txt_file = os.path.join(WD, 'test_file.txt')
+    with open(txt_file, 'w') as f:
+        f.write('this is a test file')
+
+    run_and_save_sweep(sweep, tmpdir, 'txt_archive_file', archive_files='test_file.txt')
+
+    os.remove(txt_file)
+
+    data_file_path = glob.glob(os.path.join(tmpdir, '**', '*.ddh5'), recursive=True)
+    head, tail = os.path.split(data_file_path[0])
+    archived_test_file = os.path.join(head, 'archive_files', 'test_file.txt')
+    assert os.path.isfile(archived_test_file)
+
+def test_archive_multiple_files(tmpdir):
+    WD = os.getcwd()
+    files = [os.path.join(WD, f'test_file#{i}.txt') for i in range(5)]
+    for count, file in enumerate(files):
+        with open(file, 'w') as f:
+            f.write('this is a test file')
+
+    run_and_save_sweep(sweep, tmpdir, 'multiple_files', archive_files=['*.txt'])
+
+    for file in files:
+        os.remove(file)
+
+    data_file_path = glob.glob(os.path.join(tmpdir, '**', '*.ddh5'), recursive=True)
+    head, tail = os.path.split(data_file_path[0])
+    archived_files = [os.path.join(head, 'archive_files', f'test_file#{i}.txt') for i in range(5)]
+    num_existing_files = 0
+    for ar_file in archived_files:
+        if os.path.isfile(ar_file):
+            num_existing_files += 1
+    assert num_existing_files == 5
+
+def test_archive_folder(tmpdir):
+    WD = os.getcwd()
+    os.mkdir('test_folder')
+    txt_files = [os.path.join(WD, 'test_folder', f'test_file#{i}.txt') for i in range(5)]
+    script_files = [os.path.join(WD,'test_folder', f'test_script#{i}.py') for i in range(5)]
+    files = txt_files + script_files
+    for count, file in enumerate(files):
+        with open(file, 'w') as f:
+            f.write('this is a test file')
+
+    run_and_save_sweep(sweep, tmpdir, 'folder', archive_files=['test_folder'])
+
+    shutil.rmtree('test_folder')
+
+    data_file_path = glob.glob(os.path.join(tmpdir, '**', '*.ddh5'), recursive=True)
+    head, tail = os.path.split(data_file_path[0])
+    archived_txt_files = [os.path.join(head, 'archive_files', 'test_folder', f'test_file#{i}.txt') for i in range(5)]
+    archived_scripts = [os.path.join(head, 'archive_files', 'test_folder', f'test_script#{i}.py') for i in range(5)]
+    archived_files = archived_txt_files + archived_scripts
+    num_existing_files = 0
+    for ar_file in archived_files:
+        if os.path.isfile(ar_file):
+            num_existing_files += 1
+    assert num_existing_files == 10
+
+def test_archive_everythin(tmpdir):
+    WD = os.getcwd()
+    os.mkdir('test_folder')
+    txt_folder_files = [os.path.join(WD, 'test_folder', f'test_file#{i}.txt') for i in range(5)]
+    script_folder_files = [os.path.join(WD, 'test_folder', f'test_script#{i}.py') for i in range(5)]
+    txt_files = [os.path.join(WD, f'test_file#{i}.txt') for i in range(5)]
+    csv_file = [os.path.join(WD, f'../test_csv.csv')]
+    files = txt_folder_files + script_folder_files + txt_files + csv_file
+    for file in files:
+        with open(file, 'w') as f:
+            f.write('this is a test file')
+
+    run_and_save_sweep(sweep, tmpdir, 'folder', archive_files=['*.txt','../test_csv.csv','test_folder'])
+
+    shutil.rmtree('test_folder')
+    for file in txt_files + csv_file:
+        os.remove(file)
+
+    data_file_path = glob.glob(os.path.join(tmpdir, '**', '*.ddh5'), recursive=True)
+    head, tail = os.path.split(data_file_path[0])
+    archived_folder_txt_files = [os.path.join(head, 'archive_files', 'test_folder', f'test_file#{i}.txt') for i in range(5)]
+    archived_folder_scripts = [os.path.join(head, 'archive_files', 'test_folder', f'test_script#{i}.py') for i in range(5)]
+    archived_txt_files = [os.path.join(head,'archive_files', f'test_file#{i}.txt') for i in range(5)]
+    archived_csv_file = [os.path.join(head, 'archive_files', f'test_csv.csv')]
+    archived_files = archived_folder_txt_files + archived_folder_scripts + archived_csv_file + archived_txt_files
+    num_existing_files = 0
+    for ar_file in archived_files:
+        if os.path.isfile(ar_file):
+            num_existing_files += 1
+    assert num_existing_files == 16

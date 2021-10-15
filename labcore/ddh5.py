@@ -117,10 +117,21 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str,
     :param name: Name of the file.
     :param ignore_all_None_results: if ``True``, don't save any records that contain a ``None``.
         if ``False``, only do not save records that are all-``None``.
+    :param archive_files: List of files to copy into a folder called 'archived_files' in
+        the same directory that the data is saved. It should be a list of paths (str), regular expressions are supported.
+        If a folder is passed, it will copy the entire folder and all of its subdirectories and files into the
+        archived_files folder. If one of the arguments could not be found, a message will be printed and the measurement
+        will be performed without the file being archived. An exception is raised if the type is invalid.
+
+        e.g. archive_files=['*.txt', 'calibration_files', '../test_file.py'].  '*.txt' will copy every txt file
+        located in the working directory. 'calibration_files' will copy the entire folder called calibration_files from
+        the working directory into the archived_files folder. '../test_file.py' will copy the script test_file.py from
+        one directory above the working directory.
     :param extra_saving_items: Kwargs for extra objects that should be saved. If the kwarg is a dictionary, the function
         will try and save it as a JSON file. If the dictionary contains objects that are not JSON serializable it will
         be pickled. Any other kind of object will be pickled too. The files will have their keys as names.
 
+    :raises TypeError: A Typerror is raised if the object passed for archive_files is not correct
     """
     data_dict = _create_datadict_structure(sweep)
 
@@ -155,6 +166,11 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str,
         if archive_files != None:
             archive_files_dir = os.path.join(dir, 'archive_files')
             os.mkdir(archive_files_dir)
+            if not isinstance(archive_files, list) and not isinstance(archive_files, tuple):
+                if isinstance(archive_files, str):
+                    archive_files = [archive_files]
+                else:
+                    raise TypeError(f'{type(archive_files)} is not a list.')
             for path in archive_files:
                 if os.path.isdir(path):
                     folder_name = os.path.basename(path)
