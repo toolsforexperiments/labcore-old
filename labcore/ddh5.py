@@ -168,9 +168,7 @@ def run_and_save_sweep(sweep: Sweep,
 
         # Save the kwargs
         if save_action_kwargs:
-            action_kwargs = sweep.action_kwargs
-            key = list(action_kwargs.keys())
-            json_path_file = os.path.join(dir, key[0]+'_action_kwargs.json')
+            json_path_file = os.path.join(dir, 'sweep_action_kwargs.json')
             _save_dictionary(sweep.action_kwargs, json_path_file)
 
         # Save archive_files
