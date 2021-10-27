@@ -104,9 +104,11 @@ class NumpyEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def run_and_save_sweep(sweep: Sweep, data_dir: str,
+def run_and_save_sweep(sweep: Sweep,
+                       data_dir: str,
                        name: str,
                        ignore_all_None_results: bool = True,
+                       save_action_kwargs: bool = False,
                        archive_files: List[str]=None,
                        **extra_saving_items) -> None:
     """
@@ -117,6 +119,8 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str,
     :param name: Name of the file.
     :param ignore_all_None_results: if ``True``, don't save any records that contain a ``None``.
         if ``False``, only do not save records that are all-``None``.
+    :param  save_action_kwargs: If ``True``, the action_kwargs of the sweep will be saved as a json file named after
+        the first key of the kwargs dctionary followed by '_action_kwargs' in the same directory as the data.
     :param archive_files: List of files to copy into a folder called 'archived_files' in
         the same directory that the data is saved. It should be a list of paths (str), regular expressions are supported.
         If a folder is passed, it will copy the entire folder and all of its subdirectories and files into the
@@ -161,6 +165,13 @@ def run_and_save_sweep(sweep: Sweep, data_dir: str,
                     _pickle_and_save(value, pickle_path_file)
             else:
                 _pickle_and_save(value, pickle_path_file)
+
+        # Save the kwargs
+        if save_action_kwargs:
+            action_kwargs = sweep.action_kwargs
+            key = list(action_kwargs.keys())
+            json_path_file = os.path.join(dir, key[0]+'_action_kwargs.json')
+            _save_dictionary(sweep.action_kwargs, json_path_file)
 
         # Save archive_files
         if archive_files != None:
