@@ -19,6 +19,7 @@ import time
 from enum import Enum
 from typing import Any, Union, Optional, Dict, Type, Collection, List
 from types import TracebackType
+from pathlib import Path
 import json
 import pickle
 import shutil
@@ -143,7 +144,7 @@ def run_and_save_sweep(sweep: Sweep,
     with DDH5Writer(data_dict, data_dir, name=name) as writer:
 
         # Saving meta-data
-        dir = writer.filepath.removesuffix(writer.filename) # Target directoy
+        dir: Path = writer.filepath.parent
         for key, val in extra_saving_items.items():
             if callable(val):
                 value = val()
