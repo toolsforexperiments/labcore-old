@@ -36,6 +36,8 @@ from .measurement.sweep import Sweep
 __author__ = 'Wolfgang Pfaff'
 __license__ = 'MIT'
 
+TIMESTRFORMAT = "%Y-%m-%dT%H%M%S"
+
 
 def _create_datadict_structure(sweep: Sweep) -> DataDict:
     """
@@ -86,9 +88,11 @@ def _check_none(line: Dict, all: bool = True) -> bool:
                 return True
     return False
 
+
 def _save_dictionary(dict: Dict, filepath: str) -> None:
     with open(filepath, 'w') as f:
         json.dump(dict, f, indent=2, sort_keys=True, cls=NumpyEncoder)
+
 
 def _pickle_and_save(obj, filepath: str) -> None:
     try:
@@ -110,6 +114,7 @@ def run_and_save_sweep(sweep: Sweep,
                        name: str,
                        ignore_all_None_results: bool = True,
                        save_action_kwargs: bool = False,
+                       add_timestamps = False,
                        archive_files: List[str]=None,
                        **extra_saving_items) -> None:
     """
@@ -145,15 +150,24 @@ def run_and_save_sweep(sweep: Sweep,
 
         # Saving meta-data
         dir: Path = writer.filepath.parent
+        if add_timestamps:
+            t = time.localtime()
+            time_stamp = time.strftime(TIMESTRFORMAT, t) + '_'
+
         for key, val in extra_saving_items.items():
             if callable(val):
                 value = val()
             else:
                 value = val
 
-            pickle_path_file = os.path.join(dir, key + '.pickle')
-            if isinstance(value, dict):
+            if add_timestamps:
+                pickle_path_file = os.path.join(dir, time_stamp + key + '.pickle')
+                json_path_file = os.path.join(dir, time_stamp + key + '.json')
+            else:
+                pickle_path_file = os.path.join(dir, key + '.pickle')
                 json_path_file = os.path.join(dir, key + '.json')
+
+            if isinstance(value, dict):
                 try:
                     _save_dictionary(value, json_path_file)
                 except TypeError as error:
@@ -169,7 +183,10 @@ def run_and_save_sweep(sweep: Sweep,
 
         # Save the kwargs
         if save_action_kwargs:
-            json_path_file = os.path.join(dir, 'sweep_action_kwargs.json')
+            if add_timestamps:
+                json_path_file = os.path.join(dir, time_stamp + 'sweep_action_kwargs.json')
+            else:
+                json_path_file = os.path.join(dir, 'sweep_action_kwargs.json')
             _save_dictionary(sweep.action_kwargs, json_path_file)
 
         # Save archive_files
