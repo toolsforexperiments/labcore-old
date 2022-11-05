@@ -17,7 +17,7 @@ underscore pre- and suffix.
 import os
 import time
 from enum import Enum
-from typing import Any, Union, Optional, Dict, Type, Collection, List
+from typing import Any, Union, Optional, Dict, Type, Collection, List, Tuple
 from types import TracebackType
 from pathlib import Path
 import json
@@ -115,8 +115,9 @@ def run_and_save_sweep(sweep: Sweep,
                        ignore_all_None_results: bool = True,
                        save_action_kwargs: bool = False,
                        add_timestamps = False,
-                       archive_files: List[str]=None,
-                       **extra_saving_items) -> None:
+                       archive_files: List[str] = None,
+                       return_data: bool = False,
+                       **extra_saving_items) -> Tuple[str, Optional[DataDict]]:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
 
@@ -220,3 +221,6 @@ def run_and_save_sweep(sweep: Sweep,
                 writer.add_data(**line)
 
     print('The measurement has finished successfully and all of the data has been saved.')
+    ret = [dir, data_dict] if return_data else [dir, None]
+    return ret
+
