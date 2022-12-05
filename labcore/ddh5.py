@@ -24,6 +24,7 @@ import json
 import pickle
 import shutil
 import glob
+import logging
 
 import numpy as np
 import h5py
@@ -37,6 +38,8 @@ __author__ = 'Wolfgang Pfaff'
 __license__ = 'MIT'
 
 TIMESTRFORMAT = "%Y-%m-%dT%H%M%S"
+
+logger = logging.getLogger(__name__)
 
 
 def _create_datadict_structure(sweep: Sweep) -> DataDict:
@@ -115,9 +118,9 @@ def run_and_save_sweep(sweep: Sweep,
                        ignore_all_None_results: bool = True,
                        save_action_kwargs: bool = False,
                        add_timestamps = False,
-                       archive_files: List[str] = None,
+                       archive_files: Optional[List[str]] = None,
                        return_data: bool = False,
-                       **extra_saving_items) -> Tuple[str, Optional[DataDict]]:
+                       **extra_saving_items) -> Tuple[Union[str, Path], Optional[DataDict]]:
     """
     Iterates through a sweep, saving the data coming through it into a file called <name> at <data_dir> directory.
 
@@ -176,8 +179,8 @@ def run_and_save_sweep(sweep: Sweep,
                     if os.path.isfile(json_path_file):
                         os.remove(json_path_file)
 
-                    print(f'{key} has not been able to save to json: {error.args}.'
-                          f' The item will be pickled instead.')
+                    logging.info(f'{key} has not been able to save to json: {error.args}.'
+                                 f' The item will be pickled instead.')
                     _pickle_and_save(value, pickle_path_file)
             else:
                 _pickle_and_save(value, pickle_path_file)
@@ -191,7 +194,7 @@ def run_and_save_sweep(sweep: Sweep,
             _save_dictionary(sweep.action_kwargs, json_path_file)
 
         # Save archive_files
-        if archive_files != None:
+        if archive_files is not None:
             archive_files_dir = os.path.join(dir, 'archive_files')
             os.mkdir(archive_files_dir)
             if not isinstance(archive_files, list) and not isinstance(archive_files, tuple):
@@ -211,16 +214,21 @@ def run_and_save_sweep(sweep: Sweep,
                 else:
                     matches = glob.glob(path, recursive=True)
                     if len(matches) == 0:
-                        print(f'{path} could not be found. Measurement will continue without archiving {path}')
+                        logging.info(f'{path} could not be found. Measurement will continue without archiving {path}')
                     for file in matches:
                         shutil.copy(file, archive_files_dir)
 
         # Save data.
-        for line in sweep:
-            if not _check_none(line, all=ignore_all_None_results):
-                writer.add_data(**line)
+        try:
+            for line in sweep:
+                if not _check_none(line, all=ignore_all_None_results):
+                    writer.add_data(**line)
+        except KeyboardInterrupt:
+            logger.warning('Sweep stopped by Keyboard interrupt. Data completed before interrupt should be saved.')
+            ret = (dir, data_dict) if return_data else (dir, None)
+            return ret
 
-    print('The measurement has finished successfully and all of the data has been saved.')
-    ret = [dir, data_dict] if return_data else [dir, None]
+    logger.info('The measurement has finished successfully and all of the data has been saved.')
+    ret = (dir, data_dict) if return_data else (dir, None)
     return ret
 
