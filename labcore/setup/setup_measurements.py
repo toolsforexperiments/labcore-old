@@ -7,12 +7,12 @@ from pathlib import Path
 
 from instrumentserver.client import Client, ProxyInstrument
 
-from labcore.ddh5 import run_and_save_sweep
-from labcore.measurement import Sweep
+from labcore.sweep.ddh5 import run_and_save_sweep
+from labcore.sweep.sweep import Sweep
 
 from plottr.data.datadict import DataDict
 
-from .analysis.data import data_info
+from labcore.analysis.data import data_info
 
 
 # constants

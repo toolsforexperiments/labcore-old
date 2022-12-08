@@ -58,7 +58,7 @@ class RecordOPXdata(AsyncRecord):
 
     def setup(self, fun, *args, **kwargs) -> None:
         """
-        Establishes connection with the OPX and starts the the sweeping. The config of the OPX is passed through
+        Establishes connection with the OPX and starts the sweeping. The config of the OPX is passed through
         the module variable global_config. It saves the result handles and saves initial values to the communicator
         dictionary.
         """

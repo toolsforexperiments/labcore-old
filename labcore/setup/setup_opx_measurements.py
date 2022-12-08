@@ -19,7 +19,7 @@ from instrumentserver.helpers import nestedAttributeFromString
 
 from labcore.opx.config import QMConfig
 from .opx_tools import sweep as qmsweep
-from labcore.opx.mixer import  MixerConfig, mixer_of_step, mixer_imb_step
+from qcuiuc_measurement.opx_msmt.mixer import  MixerConfig, mixer_of_step, mixer_imb_step
 
 from . import setup_measurements
 from .setup_measurements import *
