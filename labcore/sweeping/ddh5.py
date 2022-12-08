@@ -32,7 +32,7 @@ import h5py
 from plottr.data.datadict import DataDict, is_meta_key
 from plottr.data.datadict_storage import DDH5Writer
 
-from .measurement.sweep import Sweep
+from labcore.sweeping.sweep import Sweep
 
 __author__ = 'Wolfgang Pfaff'
 __license__ = 'MIT'
@@ -134,7 +134,7 @@ def run_and_save_sweep(sweep: Sweep,
     :param archive_files: List of files to copy into a folder called 'archived_files' in
         the same directory that the data is saved. It should be a list of paths (str), regular expressions are supported.
         If a folder is passed, it will copy the entire folder and all of its subdirectories and files into the
-        archived_files folder. If one of the arguments could not be found, a message will be printed and the measurement
+        archived_files folder. If one of the arguments could not be found, a message will be printed and the sweeping
         will be performed without the file being archived. An exception is raised if the type is invalid.
 
         e.g. archive_files=['*.txt', 'calibration_files', '../test_file.py'].  '*.txt' will copy every txt file
@@ -228,7 +228,7 @@ def run_and_save_sweep(sweep: Sweep,
             ret = (dir, data_dict) if return_data else (dir, None)
             return ret
 
-    logger.info('The measurement has finished successfully and all of the data has been saved.')
+    logger.info('The sweeping has finished successfully and all of the data has been saved.')
     ret = (dir, data_dict) if return_data else (dir, None)
     return ret
 

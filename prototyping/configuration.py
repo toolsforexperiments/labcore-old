@@ -69,7 +69,7 @@ class QMConfig:
             'pulses': {
 
                 'box_pulse': {
-                    'operation': 'measurement',
+                    'operation': 'sweeping',
                     'length': self.box_length,
                     'waveforms': {
                         'single': 'box_wf'

@@ -1,0 +1,98 @@
+{
+  "parameter_manager.mixers.qubit.imbalance": {
+    "unit": "",
+    "value": [
+      0.017258832411374866,
+      0.0431687466800213
+    ]
+  },
+  "parameter_manager.mixers.qubit.offsets": {
+    "unit": "",
+    "value": [
+      -0.0043203430482981284,
+      0.002425398575564943
+    ]
+  },
+  "parameter_manager.mixers.readout.imbalance": {
+    "unit": "",
+    "value": [
+      -0.10679336142539977,
+      0.0759567975997925
+    ]
+  },
+  "parameter_manager.mixers.readout.offsets": {
+    "unit": "",
+    "value": [
+      -0.037305109893088224,
+      -0.02914601831580512
+    ]
+  },
+  "parameter_manager.qubit.IF": {
+    "unit": "Hz",
+    "value": 173950814.28219295
+  },
+  "parameter_manager.qubit.LO": {
+    "unit": "Hz",
+    "value": 4795250000.0
+  },
+  "parameter_manager.qubit.drive.constant_drive.amp": {
+    "unit": "",
+    "value": 0.05
+  },
+  "parameter_manager.qubit.drive.constant_drive.edge_len": {
+    "unit": "ns",
+    "value": 1000
+  },
+  "parameter_manager.qubit.drive.constant_drive.len": {
+    "unit": "ns",
+    "value": 10000
+  },
+  "parameter_manager.qubit.drive.long.amp": {
+    "unit": "",
+    "value": 0.01
+  },
+  "parameter_manager.qubit.drive.long.length": {
+    "unit": "ns",
+    "value": 50000
+  },
+  "parameter_manager.qubit.drive.pipulse.amp": {
+    "unit": "",
+    "value": 0.026676964555142905
+  },
+  "parameter_manager.qubit.drive.pipulse.nsigmas": {
+    "unit": "",
+    "value": 6
+  },
+  "parameter_manager.qubit.drive.pipulse.sigma": {
+    "unit": "ns",
+    "value": 50
+  },
+  "parameter_manager.readout.IF": {
+    "unit": "Hz",
+    "value": 50000000.0
+  },
+  "parameter_manager.readout.LO": {
+    "unit": "Hz",
+    "value": 7219000000.0
+  },
+  "parameter_manager.readout.long.amp": {
+    "unit": "",
+    "value": 0.07
+  },
+  "parameter_manager.readout.long.len": {
+    "unit": "ns",
+    "value": 50000
+  },
+  "parameter_manager.readout.short.amp": {
+    "unit": "",
+    "value": 0.03
+  },
+  "parameter_manager.readout.short.buffer": {
+    "unit": "ns",
+    "value": 0
+  },
+  "parameter_manager.readout.short.len": {
+    "unit": "ns",
+    "value": 2000
+  }
+}

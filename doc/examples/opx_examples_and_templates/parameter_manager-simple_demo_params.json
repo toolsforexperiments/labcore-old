@@ -1,0 +1,18 @@
+{
+  "simple_demo_params.readout.IF": {
+    "unit": "Hz",
+    "value": 50000000.0
+  },
+  "simple_demo_params.readout.short.amp": {
+    "unit": "",
+    "value": 0.25
+  },
+  "simple_demo_params.readout.short.buffer": {
+    "unit": "ns",
+    "value": 100
+  },
+  "simple_demo_params.readout.short.len": {
+    "unit": "ns",
+    "value": 1000
+  }
+}
