@@ -32,7 +32,7 @@ import h5py
 from plottr.data.datadict import DataDict, is_meta_key
 from plottr.data.datadict_storage import DDH5Writer
 
-from labcore.sweeping.sweep import Sweep
+from labcore.sweep.sweep import Sweep
 
 __author__ = 'Wolfgang Pfaff'
 __license__ = 'MIT'
