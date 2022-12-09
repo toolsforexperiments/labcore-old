@@ -5,9 +5,9 @@ from dataclasses import dataclass
 from qm.qua import *
 from qm.QuantumMachinesManager import QuantumMachinesManager
 
-from labcore.sweeping import *
-from labcore.sweeping.record import make_data_spec
-from labcore.sweeping.sweep import AsyncRecord
+from labcore.sweep import *
+from labcore.sweep.record import make_data_spec
+from labcore.sweep.sweep import AsyncRecord
 
 from labcore.opx.config import QMConfig
 
