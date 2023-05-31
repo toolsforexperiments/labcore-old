@@ -7,19 +7,29 @@ Use by importing and then configuring the options object.
 import os
 os.environ['QM_DISABLE_STREAMOUTPUT'] = "1"
 
+from typing import Optional, Callable
+from dataclasses import dataclass
+from functools import partial
+
 from IPython.display import display
 import ipywidgets as widgets
 
-from qm.QuantumMachinesManager import QuantumMachinesManager, QuantumMachine
+# FIXME: only until everyone uses the latest qm packages.
+try:
+    from qm.QuantumMachinesManager import QuantumMachinesManager, QuantumMachine
+except:
+    from qm.QuantumMachinesManager import QuantumMachinesManager
+    from qm import QuantumMachine
+
 from qm.qua import *
 
 from instrumentserver.helpers import nestedAttributeFromString
 
 
 
-from labcore.opx.config import QMConfig
+from .opx_tools.config import QMConfig
 from .opx_tools import sweep as qmsweep
-from qcuiuc_measurement.opx_msmt.mixer import  MixerConfig, mixer_of_step, mixer_imb_step
+from .opx_tools.mixer import calibrate_mixer, MixerConfig, mixer_of_step, mixer_imb_step
 
 from . import setup_measurements
 from .setup_measurements import *
@@ -67,16 +77,23 @@ class Mixer:
             raise RuntimeError('No active QuantumMachine.')
         mixer_imb_step(self.config, self.qm, dg, dp)
 
-def add_mixer_config(element_name, analyzer, generator, **config_kwargs):
+def add_mixer_config(element_name, analyzer, generator, element_to_param_map=None, **config_kwargs):
+    """
+    FIXME: add docu (@wpfff)
+    TODO: make sure we document the meaning of `element_to_param_map`.
+    """
+    if element_to_param_map is None:
+        element_to_param_map = element_name
+
     cfg = MixerConfig(
         qmconfig=options.qm_config,
         opx_address=options.qm_config.opx_address,
         opx_port=options.qm_config.opx_port,
         analyzer=analyzer,
         generator=generator,
-        if_param=nestedAttributeFromString(options.parameters, f"{element_name}.IF"),
-        offsets_param=nestedAttributeFromString(options.parameters, f"mixers.{element_name}.offsets"),
-        imbalances_param=nestedAttributeFromString(options.parameters, f"mixers.{element_name}.imbalance"),
+        if_param=nestedAttributeFromString(options.parameters, f"{element_to_param_map}.IF"),
+        offsets_param=nestedAttributeFromString(options.parameters, f"mixers.{element_to_param_map}.offsets"),
+        imbalances_param=nestedAttributeFromString(options.parameters, f"mixers.{element_to_param_map}.imbalance"),
         mixer_name=f'{element_name}_IQ_mixer',
         element_name=element_name,
         pulse_name='constant',

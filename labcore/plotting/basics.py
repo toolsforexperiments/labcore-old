@@ -15,9 +15,10 @@ import seaborn as sns
 from plottr.analyzer.fitters.fitter_base import FitResult, Fit
 
 
-default_cmap = cm.viridis
+# default_cmap = cm.viridis
 
 logger = logging.getLogger(__name__)
+
 
 def _fit_and_plot(x: Union[List, Tuple, ndarray], y: Union[List, Tuple, ndarray],
                   ax: Axes, residual_ax: Optional[Axes] = None,
@@ -133,7 +134,7 @@ def plot_data_and_fit_1d(x: Union[List, Tuple, ndarray], y: Union[List, Tuple, n
     if fig is None:
         fig = plt.figure()
 
-    if any(np.iscomplex(y)):
+    if np.iscomplex(y).any():
         y_ = y.real
         logger.warning('Ignoring imaginary part of the data.')
     else:
@@ -256,13 +257,13 @@ def pplot(ax, x, y, yerr=None, linex=None, liney=None, color=None, fmt='o',
     return tuple(syms)
 
 
-def ppcolormesh(ax, x, y, z, cmap=default_cmap, make_grid=True, **kw):
+def ppcolormesh(ax, x, y, z, make_grid=True, **kw):
     if make_grid:
         _x, _y = pcolorgrid(x, y)
     else:
         _x, _y = x, y
 
-    im = ax.pcolormesh(_x, _y, z, cmap=cmap, **kw)
+    im = ax.pcolormesh(_x, _y, z, **kw)
     ax.set_xlim(_x.min(), _x.max())
     ax.set_ylim(_y.min(), _y.max())
 
@@ -270,7 +271,7 @@ def ppcolormesh(ax, x, y, z, cmap=default_cmap, make_grid=True, **kw):
 
 
 def waterfall(ax, xs, ys, offset=None, style='pplot', **kw):
-    cmap = kw.pop('cmap', default_cmap)
+    cmap = kw.pop('cmap', mpl.rcParams['image.cmap'])
     linex = kw.pop('linex', xs)
     liney = kw.pop('liney', None)
     draw_baselines = kw.pop('draw_baselines', False)
@@ -445,7 +446,7 @@ def format_ax(ax, top=False, right=False, xlog=False, ylog=False,
     if isinstance(yticks, list):
         ax.yaxis.set_major_locator(ticker.FixedLocator(yticks))
         if ylim is not None:
-            ax.set_xlim(ylim)
+            ax.set_ylim(ylim)
     elif ylim is not None:
         ax.yaxis.set_major_locator(ticker.LinearLocator(yticks))
         ax.set_ylim(ylim)
@@ -481,15 +482,20 @@ def add_legend(ax, anchor_point=(1, 1), legend_ref_point='lower right', **labels
 
 def setup_plotting(sns_style='whitegrid', rcparams={}):
     # some sensible defaults for sizing, those are for a typical print-plot
+    sns.set_style(sns_style)
+
     mpl.rcParams['figure.constrained_layout.use'] = True
     mpl.rcParams['figure.dpi'] = 300
     mpl.rcParams['figure.figsize'] = (3, 2)
-    mpl.rcParams['font.family'] = 'Arial', 'Helvetica'
+    # mpl.rcParams['font.family'] = 'Noto Sans Math', 'Arial', 'Helvetica', 'DejaVu Sans'
     mpl.rcParams['font.size'] = 6
+    # mpl.rcParams['lines.marker'] = 'o'
     mpl.rcParams['lines.markersize'] = 3
     mpl.rcParams['lines.linewidth'] = 1.5
     mpl.rcParams['axes.linewidth'] = 0.5
+    mpl.rcParams['axes.titlesize'] = 'medium'
     mpl.rcParams['grid.linewidth'] = 0.5
+    mpl.rcParams['image.cmap'] = 'RdPu'
     mpl.rcParams['legend.fontsize'] = 5
     mpl.rcParams['legend.frameon'] = False
     mpl.rcParams['xtick.major.width'] = 0.5
@@ -498,5 +504,4 @@ def setup_plotting(sns_style='whitegrid', rcparams={}):
     mpl.rcParams['ytick.major.size'] = 2
     mpl.rcParams["mathtext.fontset"] = 'dejavusans'
 
-    sns.set_style(sns_style)
     mpl.rcParams.update(rcparams)

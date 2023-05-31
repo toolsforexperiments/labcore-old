@@ -6,10 +6,12 @@ from typing import Dict, Any, Optional
 import numpy as np
 
 from instrumentserver.helpers import nestedAttributeFromString
-from .machines import close_my_qm
+from qcuiuc_measurement.opx_tools.machines import close_my_qm
 
 logger = logging.getLogger(__name__)
 
+
+# FIXME: Docstring incomplete
 class QMConfig:
     """
     Base class for a QMConfig class. The purpose of this class is to implement the real time changes of the
@@ -20,7 +22,7 @@ class QMConfig:
     controllers that this config uses. To not do this pass False to close_other_machines in config().
 
     The user should still manually write the config dictionary used for the specific physical setup that the
-    sweeping is going to be performed but a few helper methods are implemented in the base class: two helper
+    measurement is going to be performed but a few helper methods are implemented in the base class: two helper
     methods to write integration weights and a method that creates and adds the integration weights to the config dict.
 
     If the constructor is overriden the new constructor should call the super constructor to pass the parameter manager
@@ -64,15 +66,17 @@ class QMConfig:
     :param opx_port: The port of the OPX where the config is going to get used.
     """
 
-    def __init__(self, params, opx_address: Optional[str] = None, opx_port: Optional[str] = None) -> None:
+    def __init__(self, params, opx_address: Optional[str] = None, opx_port: Optional[int] = None,
+                 octave=None) -> None:
         self.params = params
         self.opx_address = opx_address
         self.opx_port = opx_port
+        self.octave = octave
 
     def __call__(self, *args, **kwargs) -> Dict[str, Any]:
         return self.config()
 
-    def config(self, close_other_machines: bool=True) -> Dict[str, Any]:
+    def config(self, close_other_machines: bool = True) -> Dict[str, Any]:
         """
         Creates the config dictionary.
 
@@ -99,8 +103,8 @@ class QMConfig:
         close open QuantumMachines if the configuration is exactly the same.
         """
         config_dict = conf.copy()
-        config_dict['waveforms']['randon_wf'] = {'type': 'constant',
-                                                 'sample': np.random.rand()}
+        config_dict['waveforms']['random_wf'] = {'type': 'constant',
+                                                 'sample': np.random.rand() * 0.1}
         return config_dict
 
     def add_integration_weights(self, conf):
@@ -126,21 +130,37 @@ class QMConfig:
 
         # Go throguh pulses and check if they should have integration weights
         for key in config_dict['pulses'].keys():
-            if key[:7] == 'readout' and '_pulse' in key:
-                split_key = key.split('_pulse')
-                pulse = split_key[0]
+            if 'readout_' in key and '_pulse' in key:
+                path_to_param = key.split('_')
+                readout_pulse_name = ''
+
+                # find the parameter name as it should be in the parameter manager.
+                # note: it may be nested under something else!
+                for k in path_to_param:
+                    if k[:5] == 'pulse':
+                        break  # found it! continue...
+                    else:
+                        # add all the stuff it's nested in...
+                        if len(readout_pulse_name) > 0:
+                            readout_pulse_name += f'_{k}'
+                        else:
+                            readout_pulse_name += f"{k}"
+
+                pulse = readout_pulse_name  # don't ask... too lazy to find all instances.
+                readout_param_name = readout_pulse_name.replace('_', '.')
+                len_param_name = readout_param_name + '.len'
+
                 # str with the name of the length of the pulse in the param manager
-                param_pulse = pulse.replace('_', '.') + '.len'
-                if self.params.has_param(param_pulse):
-                    if pulse not in pulses.keys():
-                        pulse_len = nestedAttributeFromString(self.params, param_pulse)()
+                if self.params.has_param(len_param_name):
+                    if readout_pulse_name not in pulses.keys():
+                        pulse_len = nestedAttributeFromString(self.params, len_param_name)()
 
                         # Using the old integration weights style for the sliced weights because the OPX currently
                         # raises an exception when using the new ones.
                         flat = [(0.2, pulse_len)]
-                        flat_sliced = [0.2] * int(pulse_len//4)
+                        flat_sliced = [0.2] * int(pulse_len // 4)
                         empty = [(0.0, pulse_len)]
-                        empty_sliced = [0.0] * int(pulse_len//4)
+                        empty_sliced = [0.0] * int(pulse_len // 4)
 
                         pulses[pulse] = {}
                         pulses[pulse][pulse + '_cos'] = {
@@ -220,7 +240,6 @@ class QMConfig:
 
         config_dict['integration_weights'] = integration_weights
 
-
         if loaded_weights is not None:
             # Check that there are not old integration weights for pulses that don't exists anymore.
             delete = []
@@ -239,7 +258,6 @@ class QMConfig:
                 if len(loaded_weights) != 0:
                     with open(integration_weights_file, 'w') as file:
                         json.dump(loaded_weights, file)
-
 
         return config_dict
 
@@ -309,3 +327,6 @@ class QMConfig:
                                            integration_weights.T[1].astype(int).tolist()))
 
         return integration_weights
+
+    def configure_octave(self, qmm, qm):
+        raise NotImplementedError

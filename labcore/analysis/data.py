@@ -7,8 +7,10 @@ from pathlib import Path
 from datetime import datetime
 import json
 
+import numpy as np
 from matplotlib.figure import Figure
 from matplotlib import pyplot as plt
+from sklearn.decomposition import PCA
 
 from plottr.data.datadict import DataDictBase, datadict_to_meshgrid, MeshgridDataDict
 from plottr.data.datadict_storage import datadict_from_hdf5
@@ -23,8 +25,14 @@ def data_info(folder: str, fn: str = 'data.ddh5', do_print: bool = True):
         return str(dataset)
 
 
-def get_data(folder: Union[str, Path], data_name: Optional[Union[str, List[str]]] = None, fn: str = 'data.ddh5',
-             mk_grid: bool = True, avg_over: Optional[str] = 'repetition') -> DataDictBase:
+def get_data(
+        folder: Union[str, Path],
+        data_name: Optional[Union[str, List[str]]] = None,
+        fn: str = 'data.ddh5',
+        mk_grid: bool = True,
+        avg_over: Optional[str] = 'repetition',
+        rotate_complex: bool = False,
+    ) -> DataDictBase:
 
     """Get data from disk.
 
@@ -41,6 +49,10 @@ def get_data(folder: Union[str, Path], data_name: Optional[Union[str, List[str]]
         if True, try to automatically place data on grid.
     avg_over
         if not ``None``, average over this axis if it exists.
+    rotate_complex
+        if True: try to rotate data automatically in IQ to map onto a single
+        axis and return real data. We use sklearn's PCA tool for that.
+        this is done after averaging.
 
     Returns
     -------
@@ -62,17 +74,19 @@ def get_data(folder: Union[str, Path], data_name: Optional[Union[str, List[str]]
         dataset = datadict_to_meshgrid(dataset)
 
     if avg_over is not None and avg_over in dataset.axes() and isinstance(dataset, MeshgridDataDict):
-        if not dataset.axes_are_compatible():
-            raise RuntimeError('When averaging, axes must be compatible.')
+        dataset = dataset.mean(avg_over)
 
-        avg_ax_id = dataset.axes(data_name[0]).index(avg_over)
-        for dn, _ in dataset.data_items():
-            dataset[dn]['values'] = dataset[dn]['values'].mean(axis=avg_ax_id)
-            if avg_over in dataset[dn]['axes']:
-                dataset[dn]['axes'].pop(avg_ax_id)
-        del dataset[avg_over]
+    if rotate_complex:
+        for d in data_name:
+            dvals = dataset.data_vals(d)
+            shp = dvals.shape
+            if np.iscomplexobj(dvals):
+                pca = PCA(n_components=1)
+                newdata = pca.fit_transform(
+                    np.vstack((dvals.real.flatten(), dvals.imag.flatten())).T
+                    )
+                dataset[d]['values'] = newdata.reshape(shp)
 
-    dataset.validate()
     return dataset
 
 

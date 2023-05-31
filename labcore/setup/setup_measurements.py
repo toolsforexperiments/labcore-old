@@ -1,18 +1,19 @@
 import os
 import sys
 import logging
-from typing import Optional, Any, Union,  Dict, Tuple
+from typing import Optional, Any, Union, List, Dict, Tuple
+from functools import partial
 from dataclasses import dataclass
 from pathlib import Path
 
 from instrumentserver.client import Client, ProxyInstrument
 
-from labcore.sweep.ddh5 import run_and_save_sweep
-from labcore.sweep.sweep import Sweep
+from labcore.ddh5 import run_and_save_sweep
+from labcore.measurement import Sweep
 
 from plottr.data.datadict import DataDict
 
-from labcore.analysis.data import data_info
+from .analysis.data import data_info
 
 
 # constants

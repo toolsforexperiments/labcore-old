@@ -1,25 +1,25 @@
-from typing import  Dict, Generator,  Optional
-import numpy as np
+from typing import Callable, Dict, Generator, List, Optional
+from functools import wraps
 from dataclasses import dataclass
+import time
+import logging
+
+import numpy as np
 
 from qm.qua import *
 from qm.QuantumMachinesManager import QuantumMachinesManager
 
-from labcore.sweep import *
-from labcore.sweep.record import make_data_spec
-from labcore.sweep.sweep import AsyncRecord
+from labcore.measurement import *
+from labcore.measurement.record import make_data_spec
+from labcore.measurement.sweep import AsyncRecord
 
-from labcore.opx.config import QMConfig
+from .config import QMConfig
 
-
-### Options that need to be set by the user for the OPX to work
-
+# --- Options that need to be set by the user for the OPX to work ---
 # config object that when called returns the config dictionary as expected by the OPX
-config: Optional[QMConfig] = None # OPX config dictionary
+config: Optional[QMConfig] = None  # OPX config dictionary
 
-# address and port of the OPX we're using
-# opx_host: Optional[str] = None
-# opx_port: Optional[str] = None
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -30,7 +30,8 @@ class TimedOPXData(DataSpec):
             deps = []
         else:
             deps = list(self.depends_on)
-        self.depends_on = [self.name+'_time_points'] + deps
+        self.depends_on = [self.name + '_time_points'] + deps
+
 
 @dataclass
 class ComplexOPXData(DataSpec):
@@ -58,12 +59,16 @@ class RecordOPXdata(AsyncRecord):
 
     def setup(self, fun, *args, **kwargs) -> None:
         """
-        Establishes connection with the OPX and starts the sweeping. The config of the OPX is passed through
+        Establishes connection with the OPX and starts the measurement. The config of the OPX is passed through
         the module variable global_config. It saves the result handles and saves initial values to the communicator
         dictionary.
         """
-        # Start the sweeping in the OPX.
-        qmachine_mgr = QuantumMachinesManager(host=config.opx_address, port=config.opx_port)
+        # Start the measurement in the OPX.
+        qmachine_mgr = QuantumMachinesManager(host=config.opx_address, port=config.opx_port,
+                                              octave=config.octave)
+        qmachine = qmachine_mgr.open_qm(config(), close_other_machines=False)
+        if config.octave is not None:
+            config.configure_octave(qmachine_mgr, qmachine)
         qmachine = qmachine_mgr.open_qm(config(), close_other_machines=False)
         job = qmachine.execute(fun(*args, **kwargs))
         result_handles = job.result_handles
@@ -128,12 +133,21 @@ class RecordOPXdata(AsyncRecord):
 
         Currently, manually closes the qmachine in the OPT so that simultaneous measurements can occur.
         """
+        logger.info('Cleaning up')
+
         manager = self.communicator['manager']
         qm_id = self.communicator['qmachine_id']
         open_machines = manager.list_open_quantum_machines()
+        logger.info(f"currently open QMs: {open_machines}")
         if qm_id in open_machines:
             qmachine = manager.get_qm(qm_id)
             qmachine.close()
+            logger.info(f"QM with ID {qm_id} closed.")
+
+        manager.close()
+        logger.info(f"QMM closed.")
+        del self.communicator['qmachine']
+        del self.communicator['manager']
 
     def collect(self, batchsize: int = 100) -> Generator[Dict, None, None]:
         """
@@ -193,7 +207,7 @@ class RecordOPXdata(AsyncRecord):
                             print(f'counter is: {self.communicator["counter"]}')
 
                         if qdata is not None and idata is not None:
-                            return_data[ds.name] = idata + 1j*qdata
+                            return_data[ds.name] = idata + 1j * qdata
 
                     elif ds.name in self.user_data:
                         continue
@@ -210,11 +224,12 @@ class RecordOPXdata(AsyncRecord):
                     if isinstance(ds, TimedOPXData):
                         data = return_data[ds.name]
                         if data is not None:
-                            tvals = np.arange(1, data.shape[-1]+1)
+                            tvals = np.arange(1, data.shape[-1] + 1)
                             if len(data.shape) == 1:
                                 return_data[name + '_time_points'] = tvals
                             elif len(data.shape) == 2:
-                                return_data[name + '_time_points'] = np.tile(tvals, data.shape[0]).reshape(data.shape[0], -1)
+                                return_data[name + '_time_points'] = np.tile(tvals, data.shape[0]).reshape(
+                                    data.shape[0], -1)
                             else:
                                 raise NotImplementedError('someone needs to look at data saving ASAP...')
 
@@ -223,5 +238,4 @@ class RecordOPXdata(AsyncRecord):
 
         finally:
             self.cleanup()
-
 
