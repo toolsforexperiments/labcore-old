@@ -14,7 +14,6 @@ import seaborn as sns
 
 from plottr.analyzer.fitters.fitter_base import FitResult, Fit
 
-
 # default_cmap = cm.viridis
 
 logger = logging.getLogger(__name__)
@@ -92,8 +91,8 @@ def _fit_and_plot(x: Union[List, Tuple, ndarray], y: Union[List, Tuple, ndarray]
 
 def plot_data_and_fit_1d(x: Union[List, Tuple, ndarray], y: Union[List, Tuple, ndarray],
                          fit_class: Optional[Fit] = None,
-                         xlabel: str ='',
-                         ylabel: str='',
+                         xlabel: str = '',
+                         ylabel: str = '',
                          initial_guess: bool = False,
                          fig: Optional[Figure] = None,
                          **guesses) -> Tuple[Figure, FitResult]:
@@ -156,7 +155,8 @@ def plot_data_and_fit_1d(x: Union[List, Tuple, ndarray], y: Union[List, Tuple, n
     return fig, fit_result
 
 
-def readout_hist(signal: ndarray, title: Optional[str] = '') -> Figure:
+def readout_hist(signal: ndarray, fig_ax: Optional[Tuple[Figure, Axes]] = None,
+                 nbins: int = 41) -> Tuple[Figure, Axes]:
     """
     Plots an IQ histogram.
 
@@ -164,8 +164,6 @@ def readout_hist(signal: ndarray, title: Optional[str] = '') -> Figure:
     ----------
     signal:
         array-like, data in complex form.
-    title:
-        The title of the figure. Defaults to ''.
 
     Returns
     -------
@@ -174,22 +172,33 @@ def readout_hist(signal: ndarray, title: Optional[str] = '') -> Figure:
     """
     I = signal.real
     Q = signal.imag
-    lim = max((I**2. + Q**2.)**.5)
-    fig, ax = plt.subplots(1,1, constrained_layout=True)
-    fig.suptitle(title, size='small')
+    lim = max((I ** 2. + Q ** 2.) ** .5)
+
+    if fig_ax is None:
+        fig, ax = plt.subplots(1, 1)
+    else:
+        fig, ax = fig_ax
+
     ax.set_xlabel('I')
     ax.set_ylabel('Q')
-    ax.axvline(0, color='w')
-    ax.axhline(0, color='w')
-    im = ax.hist2d(I, Q, bins=101, range=[[-lim, lim], [-lim, lim]])
+    ax.axvline(0, color='k', lw=0.5, dashes=[2, 2])
+    ax.axhline(0, color='k', lw=0.5, dashes=[2, 2])
+    _hist, _xe, _ye, im = ax.hist2d(I, Q, bins=nbins,
+                                    range=[[-lim, lim], [-lim, lim]])
 
-    return fig
+    ax.set_aspect('equal')
+    format_ax(ax, xlabel='I', ylabel='Q')
+
+    cb = fig.colorbar(im, ax=ax, shrink=0.5)
+    format_right_cb(cb)
+    cb.ax.set_xlabel('cts', ha='left')
+
+    return fig, ax
 
 
 # tools for prettier plotting
 def pplot(ax, x, y, yerr=None, linex=None, liney=None, color=None, fmt='o',
           alpha=0.5, mew=0.5, **kw):
-
     zorder = kw.pop('zorder', 2)
     line_dashes = kw.pop('line_dashes', [])
     line_lw = kw.pop('line_lw', 2)
@@ -224,9 +233,9 @@ def pplot(ax, x, y, yerr=None, linex=None, liney=None, color=None, fmt='o',
     #   be hidden behind the line...)
     if yerr is not None:
         err = ax.errorbar(x, y, yerr=yerr, fmt='none', ecolor=color, capsize=0,
-                          elinewidth=elinewidth, zorder=zorder-1)
+                          elinewidth=elinewidth, zorder=zorder - 1)
         empty_symbol_kws = edge_plot_kws.copy()
-        empty_symbol_kws.update({'mfc': 'w', 'mew': 0, 'zorder': zorder-1}, )
+        empty_symbol_kws.update({'mfc': 'w', 'mew': 0, 'zorder': zorder - 1}, )
         _ = ax.plot(x, y, fmt, **empty_symbol_kws)
         # syms.append(err)
 
@@ -244,7 +253,7 @@ def pplot(ax, x, y, yerr=None, linex=None, liney=None, color=None, fmt='o',
         fill_color = color
 
     fill, = ax.plot(x, y, fmt, mec='none', mfc=fill_color, alpha=alpha,
-                    zorder=zorder-1, **kw)
+                    zorder=zorder - 1, **kw)
 
     syms.append(fill)
     syms.append(edge)
@@ -422,7 +431,6 @@ def correctly_sized_figure(widths, heights, margins=0.5, dw=0.2, dh=0.2, make_ax
 
 def format_ax(ax, top=False, right=False, xlog=False, ylog=False,
               xlabel=None, ylabel=None, xlim=None, ylim=None, xticks=3, yticks=3):
-
     ax.tick_params(axis='x', which='both', pad=2,
                    top=top, labeltop=top, bottom=not top, labelbottom=not top)
     if top:
@@ -462,10 +470,10 @@ def format_ax(ax, top=False, right=False, xlog=False, ylog=False,
     ax.yaxis.labelpad = 2
 
 
-def format_right_cax(cax):
-    format_ax(cax, right=True)
-    cax.tick_params(axis='x', top='off', bottom='off', labelbottom='off',
-                    labeltop='off')
+def format_right_cb(cb):
+    cb.outline.set_visible(False)
+    cb.ax.xaxis.set_visible(True)
+    cb.ax.xaxis.set_label_position('top')
 
 
 def add_legend(ax, anchor_point=(1, 1), legend_ref_point='lower right', **labels_and_handles):
