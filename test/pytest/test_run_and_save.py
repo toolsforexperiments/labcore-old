@@ -13,8 +13,8 @@ import shutil
 
 import numpy as np
 
-from labcore.sweeping import recording, independent, dependent, sweep_parameter
-from labcore.sweeping.ddh5 import run_and_save_sweep
+from labcore.sweep import recording, independent, dependent, sweep_parameter
+from labcore.sweep.ddh5 import run_and_save_sweep
 
 
 class NonJsonObject:
