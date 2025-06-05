@@ -12,10 +12,9 @@ import pickle
 import shutil
 
 import numpy as np
-import pytest
 
-from labcore.measurement import recording, independent, dependent, sweep_parameter
-from labcore.ddh5 import run_and_save_sweep
+from labcore.sweep import recording, independent, dependent, sweep_parameter
+from labcore.sweep.ddh5 import run_and_save_sweep
 
 
 class NonJsonObject:

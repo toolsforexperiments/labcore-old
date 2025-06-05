@@ -546,7 +546,7 @@ class AsyncRecord:
     """
     Base class decorator used to record asynchronous data from instrument.
     Use the decorator with create_background_sweep function to create Sweeps that collect asynchronous data from
-    external devices running experiments independently of the measurement PC,
+    external devices running experiments independently of the sweeping PC,
     e.i. the measuring happening is not being controlled by a Sweep but instead an external device (e.g. the OPX).
     Each instrument should have its own custom setup_wrapper (see setup_wrapper docstring for more info),
     and a custom collector.
@@ -592,7 +592,7 @@ class AsyncRecord:
         Setup should accept the \*args and \**kwargs of fun. It should also place any returns from fun
         in the communicator. setup_wrapper needs to return the wrapped function (setup).
 
-        :param fun: The measurement function. In the case of the OPX this would be the function that returns the QUA
+        :param fun: The sweeping function. In the case of the OPX this would be the function that returns the QUA
                     code with any arguments that it might use.
         """
         self.wrapped_setup = partial(self.setup, fun, *args, **kwargs)
